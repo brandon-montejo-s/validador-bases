@@ -1,0 +1,170 @@
+[
+  {
+    "motor": "riesgo-b1-b5",
+    "formato_importacion": "UTELGESTION",
+    "columnas_requeridas": [
+      "Matricula",
+      "NombreApellido",
+      "Identificador",
+      "Correoelectronico",
+      "Telefono",
+      "Programa",
+      "Correoelectronico2"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
+  },
+  {
+    "motor": "cobranza_voice_blaster_1-4",
+    "formato_importacion": "Blaster_LTM",
+    "columnas_requeridas": [
+      "MATRICULA",
+      "CAMPUS",
+      "NAME",
+      "EMAIL",
+      "CONTACTADRESS",
+      "ID"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "CONTACTADRESS"
+  },
+  {
+    "motor": "motor_A",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "NombreApellido",
+      "Telefono",
+      "Correoelectronico",
+      "Matricula",
+      "saldo",
+      "Concatenado",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
+  },
+  {
+    "motor": "motor_B",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "NombreApellido",
+      "Telefono",
+      "Correoelectronico",
+      "Matricula",
+      "saldo",
+      "Concatenado",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
+  },
+  {
+    "motor": "motor_C",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "NombreApellido",
+      "Telefono",
+      "Correoelectronico",
+      "Matricula",
+      "saldo",
+      "Concatenado",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
+  },
+  {
+    "motor": "motor_D",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "NombreApellido",
+      "Telefono",
+      "Correoelectronico",
+      "Matricula",
+      "saldo",
+      "Concatenado",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
+  },
+  {
+    "motor": "motor_M1",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "name",
+      "ContactAddress",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestiondeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "ContactAddress"
+  },
+  {
+    "motor": "m2-m3",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "name",
+      "ContactAddress",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestiondeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "ContactAddress"
+  },
+  {
+    "motor": "m4-m7",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "name",
+      "ContactAddress",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestiondeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "ContactAddress"
+  },
+  {
+    "motor": "procodesk",
+    "formato_importacion": "COBMEX",
+    "columnas_requeridas": [
+      "Matricula",
+      "Nombre",
+      "Telefono",
+      "Email",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
+  }
+]
