@@ -59,7 +59,8 @@ seleccion = st.selectbox("Selecciona el Motor / Formato:", opciones_motores)
 indice_seleccionado = opciones_motores.index(seleccion)
 motor_actual = config_motores[indice_seleccionado]
 
-st.info(f"**Formato esperado:** {motor_actual['formato_importacion']}")
+# Mensaje corregido con "Formato de importación"
+st.info(f"**Formato de importación:** {motor_actual['formato_importacion']}")
 
 # Subida de archivo
 archivo_subido = st.file_uploader(
