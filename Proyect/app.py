@@ -117,9 +117,26 @@ if archivo_subido is not None:
             col_nom_real = mapa_columnas.get("NombreApellido")
             col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
 
-            # --- SECCIÓN DE HERRAMIENTAS DE CORRECCIÓN (CHECKBOXES) ---
+            # --- ANÁLISIS PREVIO DE ANOMALÍAS PARA CONTROLAR CHECKBOXES ---
+            tiene_dup_nom_inicial = False
+            if col_mat_real and col_nom_real:
+                dup_mask_init = df.apply(
+                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).strip()) 
+                    if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
+                    axis=1
+                )
+                tiene_dup_nom_inicial = dup_mask_init.sum() > 0
+
+            tiene_tel_inv_inicial = False
+            if col_tel_real:
+                patron_regex = motor_actual.get("regla_telefono", r"^\+")
+                telefonos_init = df[col_tel_real].astype(str).str.strip()
+                inv_mask_init = ~telefonos_init.str.contains(patron_regex, regex=True, na=False)
+                tiene_tel_inv_inicial = inv_mask_init.sum() > 0
+
+            # --- SECCIÓN DE HERRAMIENTAS DE CORRECCIÓN ---
             st.markdown("### 🛠️ Opciones de Limpieza Automática")
-            st.markdown("Marca las casillas si deseas aplicar las correcciones antes de evaluar o descargar:")
+            st.markdown("Marca las casillas requeridas para procesar el archivo:")
             
             col_chk1, col_chk2 = st.columns(2)
             
@@ -127,17 +144,19 @@ if archivo_subido is not None:
                 chk_limpiar_nombre = st.checkbox(
                     "✂️ Eliminar matrícula del campo NombreApellido", 
                     value=False,
-                    help="Remueve el prefijo numérico correspondiente a la matrícula en la columna NombreApellido."
+                    disabled=not tiene_dup_nom_inicial,
+                    help="Se deshabilita automáticamente si no se detecta la matrícula en el nombre."
                 )
                 
             with col_chk2:
                 chk_agregar_mas = st.checkbox(
                     "🪄 Agregar símbolo (+) a los teléfonos que no lo tengan", 
                     value=False,
-                    help="Antepone el signo + respetando el número existente."
+                    disabled=not tiene_tel_inv_inicial,
+                    help="Se deshabilita automáticamente si todos los teléfonos cumplen con el formato."
                 )
 
-            # --- APLICACIÓN INMEDIATA DE CORRECCIONES ---
+            # --- APLICACIÓN DE CORRECCIONES ---
             if chk_limpiar_nombre and col_mat_real and col_nom_real:
                 def remover_matricula(row):
                     mat = str(row[col_mat_real]).strip()
@@ -159,10 +178,10 @@ if archivo_subido is not None:
                 
                 df[col_tel_real] = df[col_tel_real].apply(corregir_telefono)
 
-            # --- EVALUACIÓN DINÁMICA DE ANOMALÍAS (DESPUÉS DE APLICAR CHECKBOXES) ---
+            # --- EVALUACIÓN DINÁMICA DE ANOMALÍAS POST-PROCESAMIENTO ---
             st.markdown("### ⚠️ Diagnóstico de la Base de Datos")
             
-            # 1. Evaluador de Matrícula en Nombre
+            # Evaluador de Matrícula en Nombre
             if col_mat_real and col_nom_real:
                 duplicados_mask = df.apply(
                     lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).strip()) 
@@ -171,11 +190,12 @@ if archivo_subido is not None:
                 )
                 cant_dup_nom = duplicados_mask.sum()
                 if cant_dup_nom > 0:
-                    st.warning(f"📌 **Matrícula duplicada en Nombre:** Se detectaron **{cant_dup_nom} registros** donde el nombre inicia con la matrícula.")
+                    st.warning(f"📌 **Matrícula duplicada en Nombre:** Se detectaron **{cant_dup_nom} registros** pendientes por corregir.")
                 else:
-                    st.success("✅ **NombreApellido:** Sin coincidencias duplicadas con la matrícula.")
+                    st.success("✅ **NombreApellido:** Estructura correcta.")
 
-            # 2. Evaluador Dinámico de Teléfonos Erróneos
+            # Evaluador de Teléfonos
+            cant_tel_inv = 0
             if col_tel_real:
                 patron_regex = motor_actual.get("regla_telefono", r"^\+")
                 telefonos_str = df[col_tel_real].astype(str).str.strip()
@@ -186,13 +206,12 @@ if archivo_subido is not None:
                 if cant_tel_inv > 0:
                     st.warning(f"📌 **Formato de Teléfono:** Se detectaron **{cant_tel_inv} registros** sin el símbolo `+` inicial o con formato incorrecto.")
                     
-                    # Tabla desplegable dinámica
                     with st.expander(f"👁️ Ver tabla de registros con teléfono erróneo ({cant_tel_inv} pendientes)"):
                         st.dataframe(invalidos_df, use_container_width=True)
                 else:
-                    st.success("✅ **Teléfonos:** Todos los registros cumplen con el formato correcto requeridos por el motor.")
+                    st.success("✅ **Teléfonos:** Todos los registros cumplen con el formato requerido.")
 
-            # --- VISTA PREVIA DE DATOS PROCESADOS (PRIMEROS 10 REGISTROS) ---
+            # --- VISTA PREVIA DE DATOS PROCESADOS ---
             st.subheader("📋 Vista previa de los datos procesados (Primeros 10 registros)")
             st.dataframe(df.head(10), use_container_width=True)
 
@@ -200,10 +219,16 @@ if archivo_subido is not None:
             with st.expander("✏️ Editar datos manualmente en la tabla"):
                 df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
 
-            # --- BOTONES PARA DESCARGAR EN EXCEL O CSV ---
+            # --- BOTONES DE DESCARGA CONDICIONALES ---
             st.divider()
             st.markdown("### 💾 Descargar Archivo Procesado")
             
+            # Los botones se habilitan solo si no hay teléfonos pendientes de corregir o si no aplica
+            permitir_descarga = (cant_tel_inv == 0)
+            
+            if not permitir_descarga:
+                st.info("💡 **Aviso:** Marca la casilla `🪄 Agregar símbolo (+)...` para corregir los teléfonos pendientes y activar las opciones de descarga.")
+
             col_down1, col_down2 = st.columns(2)
             
             with col_down1:
@@ -212,25 +237,4 @@ if archivo_subido is not None:
                     label="🚀 Descargar en Formato Excel (.xlsx)",
                     data=excel_limpio,
                     file_name=f"archivo_procesado_{motor_actual['motor']}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-                
-            with col_down2:
-                csv_limpio = df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📄 Descargar en Formato CSV (.csv)",
-                    data=csv_limpio,
-                    file_name=f"archivo_procesado_{motor_actual['motor']}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-
-# Pie de página con créditos del desarrollador
-st.markdown("---")
-st.markdown(
-    "<div style='text-align: center; color: #666666; font-size: 14px; padding: 10px;'>"
-    "🛠️ <b>Desarrollado por:</b> Brandon Montejo Sánchez"
-    "</div>",
-    unsafe_allow_html=True
-)
+                    mime="application/vnd
