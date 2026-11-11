@@ -1,7 +1,6 @@
 import os
 import json
 import io
-import re
 import pandas as pd
 import streamlit as st
 
@@ -122,7 +121,6 @@ if archivo_subido is not None:
             col_nom_real = mapa_columnas.get("NombreApellido")
             
             if col_mat_real and col_nom_real:
-                # Comprobar si el valor de matrícula aparece al inicio del nombre
                 duplicados_mask = df.apply(
                     lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).strip()) 
                     if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
@@ -133,44 +131,44 @@ if archivo_subido is not None:
                     tiene_duplicado_nombre = True
                     st.warning(f"📌 **Matrícula duplicada en Nombre:** Se detectaron **{cant_dup_nom} registros** donde el nombre inicia con la matrícula.")
 
-            # 2. Detección de Teléfonos sin '+'
+            # 2. Detección de Teléfonos sin '+' y Tabla de Errores
             tiene_tel_sin_mas = False
+            invalidos_df = pd.DataFrame()
             col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
             
             if col_tel_real:
                 patron_regex = motor_actual.get("regla_telefono", r"^\+")
                 telefonos_str = df[col_tel_real].astype(str).str.strip()
                 invalidos_mask = ~telefonos_str.str.contains(patron_regex, regex=True, na=False)
-                cant_tel_inv = invalidos_mask.sum()
+                invalidos_df = df[invalidos_mask].copy()
+                cant_tel_inv = len(invalidos_df)
                 
                 if cant_tel_inv > 0:
                     tiene_tel_sin_mas = True
                     st.warning(f"📌 **Formato de Teléfono:** Se detectaron **{cant_tel_inv} registros** sin el símbolo `+` inicial.")
-                
-                # Análisis de prefijos
-                prefijos_encontrados = telefonos_str.str.extract(r'(\+\d{1,3})')[0].dropna().unique()
-                if len(prefijos_encontrados) > 0:
-                    lista_prefijos = ", ".join(sorted(prefijos_encontrados))
-                    st.info(f"🌎 **Prefijos internacionales detectados:** `{lista_prefijos}`")
+                    
+                    # Tabla desplegable con los registros erróneos
+                    with st.expander("👁️ Ver tabla de registros con teléfono erróneo"):
+                        st.dataframe(invalidos_df, use_container_width=True)
 
-            # --- SECCIÓN DE HERRAMIENTAS DE CORRECCIÓN (CHECKBOXES) ---
+            # --- SECCIÓN DE HERRAMIENTAS DE CORRECCIÓN (CHECKBOXES DESHABILITADOS POR DEFECTO) ---
             st.markdown("### 🛠️ Opciones de Limpieza Automática")
-            st.markdown("Selecciona las correcciones que deseas aplicar al archivo antes de descargar:")
+            st.markdown("Marca las casillas si deseas aplicar las correcciones antes de descargar:")
             
             col_chk1, col_chk2 = st.columns(2)
             
             with col_chk1:
                 chk_limpiar_nombre = st.checkbox(
                     "✂️ Eliminar matrícula del campo NombreApellido", 
-                    value=tiene_duplicado_nombre,
+                    value=False,
                     help="Remueve el prefijo numérico correspondiente a la matrícula en la columna NombreApellido."
                 )
                 
             with col_chk2:
                 chk_agregar_mas = st.checkbox(
                     "🪄 Agregar símbolo (+) a los teléfonos que no lo tengan", 
-                    value=tiene_tel_sin_mas,
-                    help="Antepone el signo + respetando la clave de país existente."
+                    value=False,
+                    help="Antepone el signo + respetando el número existente."
                 )
 
             # --- APLICACIÓN DE CORRECCIONES EN CADENA ---
@@ -195,24 +193,39 @@ if archivo_subido is not None:
                 
                 df[col_tel_real] = df[col_tel_real].apply(corregir_telefono)
 
-            # --- VISTA PREVIA DE DATOS (REPRESENTA EL ESTADO ACTUAL) ---
+            # --- VISTA PREVIA DE DATOS (PRIMEROS 10 REGISTROS) ---
             st.subheader("📋 Vista previa de los datos procesados (Primeros 10 registros)")
             st.dataframe(df.head(10), use_container_width=True)
 
-            # Editor manual complementario
+            # Editor manual opcional
             with st.expander("✏️ Editar datos manualmente en la tabla"):
                 df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
 
-            # --- BOTÓN PARA DESCARGAR ARCHIVO FINAL LIMPIO ---
+            # --- BOTONES PARA DESCARGAR EN EXCEL O CSV ---
             st.divider()
             st.markdown("### 💾 Descargar Archivo Procesado")
-            excel_limpio = df_a_excel(df)
-            st.download_button(
-                label="🚀 Descargar Archivo Completo (Excel)",
-                data=excel_limpio,
-                file_name=f"archivo_procesado_{motor_actual['motor']}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            
+            col_down1, col_down2 = st.columns(2)
+            
+            with col_down1:
+                excel_limpio = df_a_excel(df)
+                st.download_button(
+                    label="🚀 Descargar en Formato Excel (.xlsx)",
+                    data=excel_limpio,
+                    file_name=f"archivo_procesado_{motor_actual['motor']}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+                
+            with col_down2:
+                csv_limpio = df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📄 Descargar en Formato CSV (.csv)",
+                    data=csv_limpio,
+                    file_name=f"archivo_procesado_{motor_actual['motor']}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
 
 # Pie de página con créditos del desarrollador
 st.markdown("---")
