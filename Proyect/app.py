@@ -62,26 +62,30 @@ modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
 if modo_oscuro:
     st.markdown("""
     <style>
-        /* Fondo principal oscuro */
+        /* Fondo general */
         [data-testid="stAppViewContainer"] {
             background-color: #0e1117 !important;
         }
         [data-testid="stHeader"] {
             background-color: #0e1117 !important;
         }
-        /* Sidebar en tono gris oscuro */
         [data-testid="stSidebar"] {
             background-color: #161b22 !important;
         }
-        /* Textos e íconos claros */
-        [data-testid="stAppViewContainer"] *, [data-testid="stSidebar"] * {
-            color: #e6edf3 !important;
+        /* Textos generales en blanco */
+        h1, h2, h3, p, span, label {
+            color: #ffffff !important;
         }
-        /* Ajuste de color en bloques de información y alertas para legibilidad */
-        div[data-testid="stMarkdownContainer"] p {
-            color: #e6edf3 !important;
+        /* Corregir texto invisible en Cajas de Alertas y Notificaciones */
+        div[data-testid="stAlert"] * {
+            color: #1c1917 !important;
         }
-        /* Cajas de subida de archivos y selecciones */
+        /* Corregir etiquetas de código en la barra lateral */
+        [data-testid="stSidebar"] code {
+            color: #1c1917 !important;
+            background-color: #e2e8f0 !important;
+        }
+        /* Cajas de subida de archivos */
         [data-testid="stFileUploadDropzone"] {
             background-color: #21262d !important;
             border-color: #30363d !important;
@@ -185,92 +189,4 @@ if archivo_subido is not None:
                 def corregir_telefono(val):
                     val_str = str(val).strip()
                     if not val_str.startswith('+'):
-                        num_limpio = "".join(filter(str.isdigit, val_str))
-                        if num_limpio:
-                            return f"+{num_limpio}"
-                    return val_str
-                
-                df[col_tel_real] = df[col_tel_real].apply(corregir_telefono)
-
-            # --- EVALUACIÓN DINÁMICA DE ANOMALÍAS ---
-            st.markdown("### ⚠️ Diagnóstico de la Base de Datos")
-            
-            # 1. Evaluador de Matrícula en Nombre
-            if col_mat_real and col_nom_real:
-                duplicados_mask = df.apply(
-                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).strip()) 
-                    if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
-                    axis=1
-                )
-                cant_dup_nom = duplicados_mask.sum()
-                if cant_dup_nom > 0:
-                    st.warning(f"📌 **Matrícula duplicada en Nombre:** Se detectaron **{cant_dup_nom} registros** donde el nombre inicia con la matrícula.")
-                else:
-                    st.success("✅ **NombreApellido:** Estructura correcta.")
-
-            # 2. Evaluador de Teléfonos
-            cant_tel_inv = 0
-            if col_tel_real:
-                patron_regex = motor_actual.get("regla_telefono", r"^\+")
-                telefonos_str = df[col_tel_real].astype(str).str.strip()
-                invalidos_mask = ~telefonos_str.str.contains(patron_regex, regex=True, na=False)
-                invalidos_df = df[invalidos_mask].copy()
-                cant_tel_inv = len(invalidos_df)
-                
-                if cant_tel_inv > 0:
-                    st.warning(f"📌 **Formato de Teléfono:** Se detectaron **{cant_tel_inv} registros** sin el símbolo `+` inicial o con formato incorrecto.")
-                    
-                    with st.expander(f"👁️ Ver tabla de registros con teléfono erróneo ({cant_tel_inv} pendientes)"):
-                        st.dataframe(invalidos_df, use_container_width=True)
-                else:
-                    st.success("✅ **Teléfonos:** Todos los registros cumplen con el formato requerido.")
-
-            # --- VISTA PREVIA DE DATOS (PRIMEROS 10 REGISTROS) ---
-            st.subheader("📋 Vista previa de los datos procesados (Primeros 10 registros)")
-            st.dataframe(df.head(10), use_container_width=True)
-
-            # Editor manual opcional
-            with st.expander("✏️ Editar datos manualmente en la tabla"):
-                df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-
-            # --- BOTONES DE DESCARGA CONDICIONALES ---
-            st.divider()
-            st.markdown("### 💾 Descargar Archivo Procesado")
-            
-            permitir_descarga = (cant_tel_inv == 0)
-            
-            if not permitir_descarga:
-                st.info("💡 **Aviso:** Marca la casilla `🪄 Agregar símbolo (+)...` para corregir los teléfonos pendientes y activar las opciones de descarga.")
-
-            col_down1, col_down2 = st.columns(2)
-            
-            with col_down1:
-                excel_limpio = df_a_excel(df)
-                st.download_button(
-                    label="🚀 Descargar en Formato Excel (.xlsx)",
-                    data=excel_limpio,
-                    file_name=f"archivo_procesado_{motor_actual['motor']}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    disabled=not permitir_descarga
-                )
-                
-            with col_down2:
-                csv_limpio = df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📄 Descargar en Formato CSV (.csv)",
-                    data=csv_limpio,
-                    file_name=f"archivo_procesado_{motor_actual['motor']}.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                    disabled=not permitir_descarga
-                )
-
-# Pie de página con créditos del desarrollador
-st.markdown("---")
-st.markdown(
-    "<div style='text-align: center; color: #888888; font-size: 14px; padding: 10px;'>"
-    "🛠️ <b>Desarrollado por:</b> Brandon Montejo Sánchez"
-    "</div>",
-    unsafe_allow_html=True
-)
+                        num_lim
