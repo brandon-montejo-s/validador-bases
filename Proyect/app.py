@@ -141,6 +141,12 @@ if archivo_subido is not None:
             col_nom_real = mapa_columnas.get("NombreApellido") or mapa_columnas.get("name")
             col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
 
+            # Inicialización de variables de control para evitar NameError
+            cant_dup_nom = 0
+            cant_tel_inv = 0
+            dup_df = pd.DataFrame()
+            invalidos_df = pd.DataFrame()
+
             # Detección inicial de anomalías
             tiene_dup_nom_inicial = False
             if col_mat_real and col_nom_real:
@@ -170,52 +176,4 @@ if archivo_subido is not None:
                     help="Se habilita si hay matrículas al inicio del nombre."
                 )
                 
-            with col_chk2:
-                chk_agregar_mas = st.checkbox(
-                    "Agregar símbolo (+) a teléfonos sin formato", 
-                    value=False,
-                    disabled=not tiene_tel_inv_inicial,
-                    help="Se habilita si hay teléfonos sin prefijo +."
-                )
-
-            # Aplicar transformaciones
-            if chk_limpiar_nombre and col_mat_real and col_nom_real:
-                def limpiar_nom(r):
-                    if pd.isna(r[col_mat_real]) or pd.isna(r[col_nom_real]):
-                        return r[col_nom_real]
-                    mat = str(r[col_mat_real]).split('.')[0].strip()
-                    nom = str(r[col_nom_real]).strip()
-                    return nom[len(mat):].strip() if nom.startswith(mat) else nom
-
-                df[col_nom_real] = df.apply(limpiar_nom, axis=1)
-
-            if chk_agregar_mas and col_tel_real:
-                def limpiar_tel(val):
-                    val_str = str(val).strip()
-                    if not val_str.startswith('+'):
-                        num_limpio = "".join(filter(str.isdigit, val_str))
-                        if num_limpio:
-                            return f"+{num_limpio}"
-                    return val_str
-
-                df[col_tel_real] = df[col_tel_real].apply(limpiar_tel)
-
-            # Diagnóstico
-            st.subheader("📊 Diagnóstico de Estado")
-            
-            col_m1, col_m2, col_m3 = st.columns(3)
-            col_m1.metric("Total Registros", f"{len(df):,}")
-
-            cant_dup_nom = 0
-            dup_df = pd.DataFrame()
-            if col_mat_real and col_nom_real:
-                duplicados_mask = df.apply(
-                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).split('.')[0].strip()) if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
-                    axis=1
-                )
-                dup_df = df[duplicados_mask].copy()
-                cant_dup_nom = len(dup_df)
-            
-            col_m2.metric("Matrículas Duplicadas", cant_dup_nom)
-
-            cant_tel_inv
+            with col
