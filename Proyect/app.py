@@ -13,13 +13,13 @@ st.set_page_config(
 
 # 2. Cargar configuración JSON
 def cargar_configuracion():
-    rutas_posibles = [
+    rutas = [
         os.path.join(os.path.dirname(__file__), "motores_config.json"),
         "motores_config.json"
     ]
-    for ruta in rutas_posibles:
-        if os.path.exists(ruta):
-            with open(ruta, "r", encoding="utf-8") as f:
+    for r in rutas:
+        if os.path.exists(r):
+            with open(r, "r", encoding="utf-8") as f:
                 return json.load(f)
     raise FileNotFoundError("No se encontró el archivo 'motores_config.json'.")
 
@@ -38,11 +38,8 @@ def cargar_archivo(uploaded_file):
             return pd.read_excel(uploaded_file)
         
         elif nombre.endswith('.csv'):
-            codificaciones = ['utf-8', 'latin-1', 'utf-8-sig', 'cp1252']
-            delimitadores = [',', ';', '\t']
-
-            for enc in codificaciones:
-                for sep in delimitadores:
+            for enc in ['utf-8', 'latin-1', 'utf-8-sig', 'cp1252']:
+                for sep in [',', ';', '\t']:
                     try:
                         uploaded_file.seek(0)
                         df = pd.read_csv(uploaded_file, sep=sep, encoding=enc, on_bad_lines='skip')
@@ -148,9 +145,7 @@ if archivo_subido is not None:
             tiene_dup_nom_inicial = False
             if col_mat_real and col_nom_real:
                 dup_mask_init = df.apply(
-                    lambda r: pd.notna(r[col_mat_real]) and pd.notna(r[col_nom_real]) and 
-                              str(r[col_nom_real]).strip().startswith(str(r[col_mat_real]).split('.')[0].strip()) 
-                              and len(str(r[col_mat_real]).split('.')[0].strip()) > 0, 
+                    lambda r: pd.notna(r[col_mat_real]) and pd.notna(r[col_nom_real]) and str(r[col_nom_real]).strip().startswith(str(r[col_mat_real]).split('.')[0].strip()) and len(str(r[col_mat_real]).split('.')[0].strip()) > 0, 
                     axis=1
                 )
                 tiene_dup_nom_inicial = bool(dup_mask_init.sum() > 0)
@@ -215,8 +210,7 @@ if archivo_subido is not None:
             dup_df = pd.DataFrame()
             if col_mat_real and col_nom_real:
                 duplicados_mask = df.apply(
-                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).split('.')[0].strip()) 
-                    if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
+                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).split('.')[0].strip()) if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
                     axis=1
                 )
                 dup_df = df[duplicados_mask].copy()
@@ -224,41 +218,4 @@ if archivo_subido is not None:
             
             col_m2.metric("Matrículas Duplicadas", cant_dup_nom)
 
-            cant_tel_inv = 0
-            invalidos_df = pd.DataFrame()
-            if col_tel_real:
-                patron_regex = motor_actual.get("regla_telefono", r"^\+")
-                telefonos_str = df[col_tel_real].astype(str).str.strip()
-                invalidos_mask = ~telefonos_str.str.contains(patron_regex, regex=True, na=False)
-                invalidos_df = df[invalidos_mask].copy()
-                cant_tel_inv = len(invalidos_df)
-                
-            col_m3.metric("Teléfonos con Error", cant_tel_inv)
-
-            # Desplegables de alertas
-            if cant_dup_nom > 0:
-                st.warning(f"Matrículas duplicadas en Nombre: Se encontraron {cant_dup_nom} registros.")
-                with st.expander(f"Ver registros con matrícula duplicada ({cant_dup_nom})"):
-                    st.dataframe(dup_df, use_container_width=True)
-            else:
-                st.success("Nombre: Sin matrículas duplicadas.")
-
-            if cant_tel_inv > 0:
-                st.warning(f"Teléfonos pendientes: Se encontraron {cant_tel_inv} registros sin '+' inicial.")
-                with st.expander(f"Ver registros con teléfono erróneo ({cant_tel_inv})"):
-                    st.dataframe(invalidos_df, use_container_width=True)
-            else:
-                st.success("Teléfonos: Formato internacional correcto.")
-
-            # Vista Previa
-            st.subheader("📋 Vista Previa de Datos Procesados (Primeros 10 registros)")
-            st.dataframe(df.head(10), use_container_width=True)
-
-            with st.expander("✏️ Edición Manual de Emergencia"):
-                df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-
-            # Exportación
-            st.divider()
-            st.subheader("💾 Exportar Archivo Final")
-            
-            permitir_descarga = (cant
+            cant_tel_inv
