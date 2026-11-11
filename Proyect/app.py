@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. ESTILOS CSS PERSONALIZADOS (UI PRO)
+# 2. ESTILOS CSS PERSONALIZADOS (UI PRO Y CONTRASTE EN SIDEBAR)
 st.markdown("""
 <style>
     .main {
@@ -36,13 +36,31 @@ st.markdown("""
         color: #e0e6ed;
         margin-top: 5px;
     }
+    
+    /* Personalización de la Sidebar */
     [data-testid="stSidebar"] {
         background-color: #111827;
         color: #ffffff;
     }
-    [data-testid="stSidebar"] * {
-        color: #e5e7eb !important;
+    [data-testid="stSidebar"] p, 
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3, 
+    [data-testid="stSidebar"] span, 
+    [data-testid="stSidebar"] div {
+        color: #e5e7eb;
     }
+    
+    /* Corrección de legibilidad para etiquetas `code` en la Sidebar */
+    [data-testid="stSidebar"] code {
+        background-color: #1f2937 !important;
+        color: #60a5fa !important;
+        border: 1px solid #374151 !important;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    
     .stButton>button, .stDownloadButton>button {
         border-radius: 8px;
         font-weight: 600;
@@ -104,240 +122,4 @@ with st.sidebar.expander("📄 Ver Configuración JSON Completa"):
 # ENCABEZADO ESTILIZADO EN PANTALLA PRINCIPAL
 st.markdown("""
 <div class="header-box">
-    <div class="header-title">⚡ Validador & Limpiador de Archivos</div>
-    <div class="header-subtitle">Selecciona el motor objetivo, sube tu base de datos y automatiza la limpieza en segundos.</div>
-</div>
-""", unsafe_allow_html=True)
-
-# Lista desplegable de motores
-opciones_motores = [f"{m['motor']} ({m['formato_importacion']})" for m in config_motores]
-seleccion = st.selectbox("🎯 **Selecciona el Motor / Formato:**", opciones_motores)
-
-# Datos del motor seleccionado
-indice_seleccionado = opciones_motores.index(seleccion)
-motor_actual = config_motores[indice_seleccionado]
-
-# Resumen en Sidebar del motor activo
-st.sidebar.markdown("---")
-st.sidebar.subheader(f"📌 Motor Activo: {motor_actual['motor']}")
-st.sidebar.markdown(f"**Formato:** `{motor_actual['formato_importacion']}`")
-st.sidebar.markdown("**Columnas requeridas:**")
-for c in motor_actual.get("columnas_requeridas", []):
-    st.sidebar.markdown(f"- `{c}`")
-
-# Etiqueta de formato de importación
-st.info(f"📋 **Formato de importación configurado:** `{motor_actual['formato_importacion']}`")
-
-# Subida de archivo
-archivo_subido = st.file_uploader("📂 **Sube tu archivo (CSV o Excel):**", type=["csv", "xlsx", "xls"])
-
-if archivo_subido is not None:
-    df_raw = cargar_archivo(archivo_subido)
-    
-    if df_raw is not None:
-        df = df_raw.copy()
-        
-        # Limpiar espacios en blanco invisibles al inicio y final de los nombres de columna del archivo
-        df.columns = [str(col).strip() for col in df.columns]
-        
-        # Mapeo flexible de columnas (case-insensitive y sin espacios)
-        cols_requeridas = motor_actual["columnas_requeridas"]
-        cols_archivo_lower = {str(c).lower(): str(c) for c in df.columns}
-        
-        cols_faltantes = []
-        mapa_columnas = {}
-        
-        for col_req in cols_requeridas:
-            col_req_lower = col_req.strip().lower()
-            encontrada = False
-            
-            # 1. Coincidencia exacta limpia
-            if col_req_lower in cols_archivo_lower:
-                mapa_columnas[col_req] = cols_archivo_lower[col_req_lower]
-                encontrada = True
-            else:
-                # 2. Coincidencia por subcadena/prefijo en caso de que venga recortada la columna
-                for col_real_lower, col_real_original in cols_archivo_lower.items():
-                    if (col_real_lower.startswith(col_req_lower[:6]) or col_req_lower.startswith(col_real_lower[:6])) and len(col_real_lower) >= 4:
-                        mapa_columnas[col_req] = col_real_original
-                        encontrada = True
-                        break
-            
-            if not encontrada:
-                cols_faltantes.append(col_req)
-                
-        if cols_faltantes:
-            st.error(f"❌ **Faltan {len(cols_faltantes)} columnas requeridas:** {', '.join(cols_faltantes)}")
-        else:
-            st.success("✅ **Estructura correcta:** Todas las columnas requeridas están presentes.")
-            
-            # Ubicar columnas clave
-            col_mat_real = mapa_columnas.get("Matricula")
-            col_nom_real = mapa_columnas.get("NombreApellido") or mapa_columnas.get("name")
-            col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
-
-            # ANÁLISIS PREVIO DE ANOMALÍAS
-            tiene_dup_nom_inicial = False
-            if col_mat_real and col_nom_real:
-                def es_duplicado(row):
-                    if pd.isna(row[col_mat_real]) or pd.isna(row[col_nom_real]):
-                        return False
-                    mat_str = str(row[col_mat_real]).split('.')[0].strip()
-                    nom_str = str(row[col_nom_real]).strip()
-                    return nom_str.startswith(mat_str) and len(mat_str) > 0
-                
-                dup_mask_init = df.apply(es_duplicado, axis=1)
-                tiene_dup_nom_inicial = bool(dup_mask_init.sum() > 0)
-
-            tiene_tel_inv_inicial = False
-            if col_tel_real:
-                patron_regex = motor_actual.get("regla_telefono", r"^\+")
-                telefonos_init = df[col_tel_real].astype(str).str.strip()
-                inv_mask_init = ~telefonos_init.str.contains(patron_regex, regex=True, na=False)
-                tiene_tel_inv_inicial = bool(inv_mask_init.sum() > 0)
-
-            # HERRAMIENTAS DE CORRECCIÓN
-            st.markdown("### 🛠️ Herramientas de Limpieza Automática")
-            
-            col_chk1, col_chk2 = st.columns(2)
-            
-            with col_chk1:
-                chk_limpiar_nombre = st.checkbox(
-                    "✂️ Eliminar matrícula del campo Nombre / NombreApellido", 
-                    value=False,
-                    disabled=not tiene_dup_nom_inicial,
-                    help="Se habilita automáticamente si se detectan matrículas al inicio del nombre."
-                )
-                
-            with col_chk2:
-                chk_agregar_mas = st.checkbox(
-                    "🪄 Agregar símbolo (+) a teléfonos sin formato", 
-                    value=False,
-                    disabled=not tiene_tel_inv_inicial,
-                    help="Se habilita automáticamente si hay teléfonos sin el prefijo +."
-                )
-
-            # APLICACIÓN DE CORRECCIONES
-            if chk_limpiar_nombre and col_mat_real and col_nom_real:
-                def remover_matricula(row):
-                    if pd.isna(row[col_mat_real]) or pd.isna(row[col_nom_real]):
-                        return row[col_nom_real]
-                    mat = str(row[col_mat_real]).split('.')[0].strip()
-                    nom = str(row[col_nom_real]).strip()
-                    if nom.startswith(mat):
-                        return nom[len(mat):].strip()
-                    return nom
-                
-                df[col_nom_real] = df.apply(remover_matricula, axis=1)
-
-            if chk_agregar_mas and col_tel_real:
-                def corregir_telefono(val):
-                    val_str = str(val).strip()
-                    if not val_str.startswith('+'):
-                        num_limpio = "".join(filter(str.isdigit, val_str))
-                        if num_limpio:
-                            return f"+{num_limpio}"
-                    return val_str
-                
-                df[col_tel_real] = df[col_tel_real].apply(corregir_telefono)
-
-            # DIAGNÓSTICO EN TIEMPO REAL
-            st.markdown("### 📊 Diagnóstico de Estado")
-            
-            col_m1, col_m2, col_m3 = st.columns(3)
-            col_m1.metric("Total Registros", f"{len(df):,}")
-
-            # Evaluador de Matrícula en Nombre tras corrección
-            cant_dup_nom = 0
-            dup_df = pd.DataFrame()
-            if col_mat_real and col_nom_real:
-                duplicados_mask = df.apply(
-                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).split('.')[0].strip()) 
-                    if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
-                    axis=1
-                )
-                dup_df = df[duplicados_mask].copy()
-                cant_dup_nom = len(dup_df)
-            
-            col_m2.metric("Matrículas Duplicadas", cant_dup_nom)
-
-            # Evaluador de Teléfonos tras corrección
-            cant_tel_inv = 0
-            invalidos_df = pd.DataFrame()
-            if col_tel_real:
-                patron_regex = motor_actual.get("regla_telefono", r"^\+")
-                telefonos_str = df[col_tel_real].astype(str).str.strip()
-                invalidos_mask = ~telefonos_str.str.contains(patron_regex, regex=True, na=False)
-                invalidos_df = df[invalidos_mask].copy()
-                cant_tel_inv = len(invalidos_df)
-                
-            col_m3.metric("Teléfonos con Error", cant_tel_inv)
-
-            # TABLAS Y ALERTAS DE DIAGNÓSTICO
-            
-            # 1. Alerta y tabla desplegable de Matrículas Duplicadas
-            if cant_dup_nom > 0:
-                st.warning(f"📌 **Matrículas duplicadas en Nombre:** Se encontraron **{cant_dup_nom} registros** donde el nombre inicia con la matrícula.")
-                with st.expander(f"👁️ Ver tabla de registros con matrícula duplicada ({cant_dup_nom})"):
-                    st.dataframe(dup_df, use_container_width=True)
-            else:
-                st.success("✅ **Nombre:** Sin matrículas duplicadas en el campo de nombre.")
-
-            # 2. Alerta y tabla desplegable de Teléfonos Pendientes
-            if cant_tel_inv > 0:
-                st.warning(f"📌 **Teléfonos pendientes:** Se encontraron **{cant_tel_inv} registros** sin el símbolo `+` inicial.")
-                with st.expander(f"👁️ Ver tabla de registros con teléfono erróneo ({cant_tel_inv})"):
-                    st.dataframe(invalidos_df, use_container_width=True)
-            else:
-                st.success("✅ **Teléfonos:** Registros con formato internacional correcto.")
-
-            # VISTA PREVIA DE DATOS PROCESADOS
-            st.subheader("📋 Vista Previa de Datos Procesados (Primeros 10 registros)")
-            st.dataframe(df.head(10), use_container_width=True)
-
-            # Editor manual opcional
-            with st.expander("✏️ Edición Manual de Emergencia"):
-                df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-
-            # BOTONES DE DESCARGA CONDICIONALES
-            st.divider()
-            st.markdown("### 💾 Exportar Archivo Final")
-            
-            permitir_descarga = (cant_tel_inv == 0) or chk_agregar_mas or chk_limpiar_nombre
-            
-            if not permitir_descarga:
-                st.info("💡 **Aviso:** Activa alguna de las casillas de limpieza arriba para habilitar la descarga.")
-
-            col_down1, col_down2 = st.columns(2)
-            mime_excel = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-            with col_down1:
-                excel_limpio = df_a_excel(df)
-                st.download_button(
-                    label="🚀 Descargar Excel (.xlsx)",
-                    data=excel_limpio,
-                    file_name=f"archivo_procesado_{motor_actual['motor']}.xlsx",
-                    mime=mime_excel,
-                    use_container_width=True,
-                    disabled=not permitir_descarga
-                )
-                
-            with col_down2:
-                csv_limpio = df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📄 Descargar CSV (.csv)",
-                    data=csv_limpio,
-                    file_name=f"archivo_procesado_{motor_actual['motor']}.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                    disabled=not permitir_descarga
-                )
-
-# PIE DE PÁGINA PROFESIONAL
-st.markdown("---")
-st.markdown(
-    "<div style='text-align: center; color: #888888; font-size: 13px; font-weight: 500; padding: 10px;'>"
-    "⚡ <b>Plataforma desarrollada por:</b> Brandon Montejo Sánchez"
-    "</div>",
-    unsafe_allow_html=True
-)
+    <div class="header-
