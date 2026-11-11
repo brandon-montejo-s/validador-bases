@@ -15,6 +15,81 @@
     "regla_telefono": "^\\+"
   },
   {
+    "motor": "Motor A",
+    "formato_importacion": "UTELGESTION",
+    "columna_telefono": "Telefono",
+    "columnas_requeridas": [
+      "Matricula",
+      "NombreApellido",
+      "Identificador",
+      "Correoelectronico",
+      "Telefono",
+      "Programa",
+      "Correoelectronico2"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "Motor B",
+    "formato_importacion": "UTELGESTION",
+    "columna_telefono": "Telefono",
+    "columnas_requeridas": [
+      "Matricula",
+      "NombreApellido",
+      "Identificador",
+      "Correoelectronico",
+      "Telefono",
+      "Programa",
+      "Correoelectronico2"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "Motor C",
+    "formato_importacion": "UTELGESTION",
+    "columna_telefono": "Telefono",
+    "columnas_requeridas": [
+      "Matricula",
+      "NombreApellido",
+      "Identificador",
+      "Correoelectronico",
+      "Telefono",
+      "Programa",
+      "Correoelectronico2"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "Motor D",
+    "formato_importacion": "UTELGESTION",
+    "columna_telefono": "Telefono",
+    "columnas_requeridas": [
+      "Matricula",
+      "NombreApellido",
+      "Identificador",
+      "Correoelectronico",
+      "Telefono",
+      "Programa",
+      "Correoelectronico2"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "PROCODESK",
+    "formato_importacion": "UTELGESTION",
+    "columna_telefono": "Telefono",
+    "columnas_requeridas": [
+      "Matricula",
+      "NombreApellido",
+      "Identificador",
+      "Correoelectronico",
+      "Telefono",
+      "Programa",
+      "Correoelectronico2"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
     "motor": "M1",
     "formato_importacion": "Cobranza_LTM",
     "columna_telefono": "Contact",
