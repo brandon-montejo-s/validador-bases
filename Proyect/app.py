@@ -1,6 +1,7 @@
 import os
 import json
 import io
+import re
 import pandas as pd
 import streamlit as st
 
@@ -64,7 +65,7 @@ seleccion = st.selectbox("Selecciona el Motor / Formato:", opciones_motores)
 indice_seleccionado = opciones_motores.index(seleccion)
 motor_actual = config_motores[indice_seleccionado]
 
-# Etiqueta corregida
+# Etiqueta de formato de importación
 st.info(f"**Formato de importación:** {motor_actual['formato_importacion']}")
 
 # Subida de archivo
@@ -74,7 +75,9 @@ if archivo_subido is not None:
     df = cargar_archivo(archivo_subido)
     
     if df is not None:
-        st.subheader("📋 Vista previa de los datos")
+        # AJUSTE 1: Siempre mostrar los primeros 10 registros en la vista previa
+        st.subheader("📋 Vista previa de los datos (Primeros 10 registros)")
+        st.dataframe(df.head(10), use_container_width=True)
         
         # Validar Columnas (case-insensitive)
         cols_requeridas = motor_actual["columnas_requeridas"]
@@ -95,6 +98,21 @@ if archivo_subido is not None:
         else:
             st.success("✅ **Estructura correcta:** Todas las columnas requeridas están presentes.")
             
+            # AJUSTE 2: Detección y cuadro de países involucrados
+            if "columna_telefono" in motor_actual and motor_actual["columna_telefono"] in mapa_columnas:
+                col_tel_real = mapa_columnas[motor_actual["columna_telefono"]]
+                
+                # Buscar prefijos internacionales en los teléfonos (ej. +52, +1, +34)
+                telefonos_str = df[col_tel_real].astype(str).str.strip()
+                prefijos_encontrados = telefonos_str.str.extract(r'(\+\d{1,3})')[0].dropna().unique()
+                
+                st.markdown("### 🌎 Análisis de Países / Prefijos en la Base")
+                if len(prefijos_encontrados) > 0:
+                    lista_prefijos = ", ".join(sorted(prefijos_encontrados))
+                    st.warning(f"📌 **Se detectaron {len(prefijos_encontrados)} prefijo(s) internacional(es) en la base:** `{lista_prefijos}`")
+                else:
+                    st.info("ℹ️ No se detectaron símbolos `+` con prefijo de país en la columna de teléfonos o aún falta aplicarlo.")
+
             # Validación y corrección de Teléfonos
             if "columna_telefono" in motor_actual and "regla_telefono" in motor_actual:
                 nombre_col_req = motor_actual["columna_telefono"]
@@ -145,7 +163,7 @@ if archivo_subido is not None:
                         tab1, tab2 = st.tabs(["👁️ Ver Filas con Error", "✏️ Editar Manualmente"])
                         
                         with tab1:
-                            st.dataframe(invalidos_df)
+                            st.dataframe(invalidos_df, use_container_width=True)
                             # Descargar solo errores
                             bytes_err = df_a_excel(invalidos_df)
                             st.download_button(
@@ -157,10 +175,9 @@ if archivo_subido is not None:
                         
                         with tab2:
                             st.info("Puedes modificar cualquier celda directamente en esta tabla antes de descargar:")
-                            df = st.data_editor(df, num_rows="dynamic")
+                            df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
                     else:
                         st.success(f"✅ Todos los números telefónicos en la columna `{col_tel_real}` cumplen con el formato.")
-                        st.dataframe(df.head(10))
 
             # --- BOTÓN PARA DESCARGAR ARCHIVO FINAL LIMPIO ---
             st.divider()
@@ -172,3 +189,12 @@ if archivo_subido is not None:
                 file_name=f"archivo_procesado_{motor_actual['motor']}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+
+# AJUSTE 3: Pie de página con los créditos del desarrollador
+st.markdown("---")
+st.markdown(
+    "<div style='text-align: center; color: #666666; font-size: 14px; padding: 10px;'>"
+    "🛠️ <b>Desarrollado por:</b> Brandon Montejo Sánchez"
+    "</div>",
+    unsafe_allow_html=True
+)
