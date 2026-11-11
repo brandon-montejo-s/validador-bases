@@ -122,4 +122,58 @@ st.sidebar.markdown("---")
 st.sidebar.subheader(f"📌 Motor Activo: {motor_actual['motor']}")
 st.sidebar.markdown(f"**Formato:** `{motor_actual['formato_importacion']}`")
 st.sidebar.markdown("**Columnas requeridas:**")
-for c in motor_actual.get("
+for c in motor_actual.get("columnas_requeridas", []):
+    st.sidebar.markdown(f"- `{c}`")
+
+# Etiqueta de formato de importación
+st.info(f"📋 **Formato de importación configurado:** `{motor_actual['formato_importacion']}`")
+
+# Subida de archivo
+archivo_subido = st.file_uploader("📂 **Sube tu archivo (CSV o Excel):**", type=["csv", "xlsx", "xls"])
+
+if archivo_subido is not None:
+    df_raw = cargar_archivo(archivo_subido)
+    
+    if df_raw is not None:
+        df = df_raw.copy()
+        
+        # Validar Columnas (case-insensitive)
+        cols_requeridas = motor_actual["columnas_requeridas"]
+        cols_archivo_lower = {str(c).strip().lower(): str(c) for c in df.columns}
+        
+        cols_faltantes = []
+        mapa_columnas = {}
+        
+        for col in cols_requeridas:
+            col_lower = col.strip().lower()
+            if col_lower in cols_archivo_lower:
+                mapa_columnas[col] = cols_archivo_lower[col_lower]
+            else:
+                cols_faltantes.append(col)
+                
+        if cols_faltantes:
+            st.error(f"❌ **Faltan {len(cols_faltantes)} columnas requeridas:** {', '.join(cols_faltantes)}")
+        else:
+            st.success("✅ **Estructura correcta:** Todas las columnas requeridas están presentes.")
+            
+            # Ubicar columnas clave
+            col_mat_real = mapa_columnas.get("Matricula")
+            col_nom_real = mapa_columnas.get("NombreApellido")
+            col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
+
+            # ANÁLISIS PREVIO DE ANOMALÍAS PARA CHECKBOXES
+            tiene_dup_nom_inicial = False
+            if col_mat_real and col_nom_real:
+                dup_mask_init = df.apply(
+                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).strip()) 
+                    if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
+                    axis=1
+                )
+                tiene_dup_nom_inicial = dup_mask_init.sum() > 0
+
+            tiene_tel_inv_inicial = False
+            if col_tel_real:
+                patron_regex = motor_actual.get("regla_telefono", r"^\+")
+                telefonos_init = df[col_tel_real].astype(str).str.strip()
+                inv_mask_init = ~telefonos_init.str.contains(patron_regex, regex=True, na=False)
+                tiene_
