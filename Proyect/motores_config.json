@@ -16,7 +16,7 @@
   },
   {
     "motor": "Motor A",
-    "formato_importacion": "UTELGESTION",
+    "formato_importacion": "Cobranza_Mx",
     "columna_telefono": "Telefono",
     "columnas_requeridas": [
       "Matricula",
@@ -31,7 +31,7 @@
   },
   {
     "motor": "Motor B",
-    "formato_importacion": "UTELGESTION",
+    "formato_importacion": "Cobranza_Mx",
     "columna_telefono": "Telefono",
     "columnas_requeridas": [
       "Matricula",
@@ -46,7 +46,7 @@
   },
   {
     "motor": "Motor C",
-    "formato_importacion": "UTELGESTION",
+    "formato_importacion": "Cobranza_Mx",
     "columna_telefono": "Telefono",
     "columnas_requeridas": [
       "Matricula",
@@ -61,7 +61,7 @@
   },
   {
     "motor": "Motor D",
-    "formato_importacion": "UTELGESTION",
+    "formato_importacion": "Cobranza_Mx",
     "columna_telefono": "Telefono",
     "columnas_requeridas": [
       "Matricula",
