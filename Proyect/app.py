@@ -63,7 +63,7 @@ with st.sidebar.expander("📄 Ver Configuración JSON Completa"):
 
 # Interfaz Principal
 st.title("🔍 Validador y Limpiador de Archivos por Motor")
-st.markdown("Selecciona el motor correspondiente, sube tu archivo y corrige automáticamente o descarga tus datos procesados.")
+st.markdown("Selecciona el motor correspondiente, sube tu archivo y aplica las herramientas de limpieza automática.")
 
 # Lista desplegable de motores
 opciones_motores = [f"{m['motor']} ({m['formato_importacion']})" for m in config_motores]
@@ -73,7 +73,7 @@ seleccion = st.selectbox("Selecciona el Motor / Formato:", opciones_motores)
 indice_seleccionado = opciones_motores.index(seleccion)
 motor_actual = config_motores[indice_seleccionado]
 
-# Mapeo y resumen en Sidebar del motor activo
+# Resumen en Sidebar del motor activo
 st.sidebar.markdown("---")
 st.sidebar.subheader(f"📌 Motor Activo: {motor_actual['motor']}")
 st.sidebar.markdown(f"**Formato:** {motor_actual['formato_importacion']}")
@@ -81,19 +81,18 @@ st.sidebar.markdown("**Columnas requeridas:**")
 for c in motor_actual.get("columnas_requeridas", []):
     st.sidebar.markdown(f"- `{c}`")
 
-# Etiqueta de formato de importación en pantalla principal
+# Etiqueta de formato de importación
 st.info(f"**Formato de importación:** {motor_actual['formato_importacion']}")
 
 # Subida de archivo
 archivo_subido = st.file_uploader("Sube tu archivo (CSV o Excel):", type=["csv", "xlsx", "xls"])
 
 if archivo_subido is not None:
-    df = cargar_archivo(archivo_subido)
+    df_raw = cargar_archivo(archivo_subido)
     
-    if df is not None:
-        # 1. Siempre mostrar los primeros 10 registros en la vista previa
-        st.subheader("📋 Vista previa de los datos (Primeros 10 registros)")
-        st.dataframe(df.head(10), use_container_width=True)
+    if df_raw is not None:
+        # Copia de trabajo para aplicar transformaciones
+        df = df_raw.copy()
         
         # Validar Columnas (case-insensitive)
         cols_requeridas = motor_actual["columnas_requeridas"]
@@ -114,86 +113,95 @@ if archivo_subido is not None:
         else:
             st.success("✅ **Estructura correcta:** Todas las columnas requeridas están presentes.")
             
-            # 2. Detección y cuadro de países/prefijos involucrados
-            if "columna_telefono" in motor_actual and motor_actual["columna_telefono"] in mapa_columnas:
-                col_tel_real = mapa_columnas[motor_actual["columna_telefono"]]
-                
-                # Buscar prefijos internacionales en los teléfonos (ej. +52, +1, +34)
+            # --- DETECCIÓN DE ANOMALÍAS Y ALERTAS ---
+            st.markdown("### ⚠️ Diagnóstico de la Base de Datos")
+            
+            # 1. Detección de Matrícula en Nombre
+            tiene_duplicado_nombre = False
+            col_mat_real = mapa_columnas.get("Matricula")
+            col_nom_real = mapa_columnas.get("NombreApellido")
+            
+            if col_mat_real and col_nom_real:
+                # Comprobar si el valor de matrícula aparece al inicio del nombre
+                duplicados_mask = df.apply(
+                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).strip()) 
+                    if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
+                    axis=1
+                )
+                cant_dup_nom = duplicados_mask.sum()
+                if cant_dup_nom > 0:
+                    tiene_duplicado_nombre = True
+                    st.warning(f"📌 **Matrícula duplicada en Nombre:** Se detectaron **{cant_dup_nom} registros** donde el nombre inicia con la matrícula.")
+
+            # 2. Detección de Teléfonos sin '+'
+            tiene_tel_sin_mas = False
+            col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
+            
+            if col_tel_real:
+                patron_regex = motor_actual.get("regla_telefono", r"^\+")
                 telefonos_str = df[col_tel_real].astype(str).str.strip()
-                prefijos_encontrados = telefonos_str.str.extract(r'(\+\d{1,3})')[0].dropna().unique()
+                invalidos_mask = ~telefonos_str.str.contains(patron_regex, regex=True, na=False)
+                cant_tel_inv = invalidos_mask.sum()
                 
-                st.markdown("### 🌎 Análisis de Países / Prefijos en la Base")
+                if cant_tel_inv > 0:
+                    tiene_tel_sin_mas = True
+                    st.warning(f"📌 **Formato de Teléfono:** Se detectaron **{cant_tel_inv} registros** sin el símbolo `+` inicial.")
+                
+                # Análisis de prefijos
+                prefijos_encontrados = telefonos_str.str.extract(r'(\+\d{1,3})')[0].dropna().unique()
                 if len(prefijos_encontrados) > 0:
                     lista_prefijos = ", ".join(sorted(prefijos_encontrados))
-                    st.warning(f"📌 **Se detectaron {len(prefijos_encontrados)} prefijo(s) internacional(es) en la base:** `{lista_prefijos}`")
-                else:
-                    st.info("ℹ️ No se detectaron símbolos `+` con prefijo de país en la columna de teléfonos o aún falta aplicarlo.")
+                    st.info(f"🌎 **Prefijos internacionales detectados:** `{lista_prefijos}`")
 
-            # Validación y corrección de Teléfonos
-            if "columna_telefono" in motor_actual and "regla_telefono" in motor_actual:
-                nombre_col_req = motor_actual["columna_telefono"]
+            # --- SECCIÓN DE HERRAMIENTAS DE CORRECCIÓN (CHECKBOXES) ---
+            st.markdown("### 🛠️ Opciones de Limpieza Automática")
+            st.markdown("Selecciona las correcciones que deseas aplicar al archivo antes de descargar:")
+            
+            col_chk1, col_chk2 = st.columns(2)
+            
+            with col_chk1:
+                chk_limpiar_nombre = st.checkbox(
+                    "✂️ Eliminar matrícula del campo NombreApellido", 
+                    value=tiene_duplicado_nombre,
+                    help="Remueve el prefijo numérico correspondiente a la matrícula en la columna NombreApellido."
+                )
                 
-                if nombre_col_req in mapa_columnas:
-                    col_tel_real = mapa_columnas[nombre_col_req]
-                    patron_regex = motor_actual["regla_telefono"]
-                    
-                    # Evaluar registros
-                    serie_tel = df[col_tel_real].astype(str).str.strip()
-                    mascara_validos = serie_tel.str.contains(patron_regex, regex=True, na=False)
-                    
-                    invalidos_df = df[~mascara_validos].copy()
-                    cant_invalidos = len(invalidos_df)
-                    
-                    # Métricas en pantalla
-                    col1, col2, col3 = st.columns(3)
-                    col1.metric("Total de Registros", len(df))
-                    col2.metric("Teléfonos Válidos", len(df) - cant_invalidos)
-                    col3.metric("Teléfonos con Formato Incorrecto", cant_invalidos)
-                    
-                    if cant_invalidos > 0:
-                        st.warning(f"⚠️ Se encontraron **{cant_invalidos} registros** sin el formato telefónico requerido en la columna `{col_tel_real}`.")
-                        
-                        # --- SECCIÓN DE AUTO-CORRECCIÓN INTERNACIONAL ---
-                        st.markdown("### 🛠️ Herramientas de Corrección Rápida")
-                        
-                        col_prefijo, col_btn = st.columns([2, 2])
-                        with col_prefijo:
-                            prefijo = st.text_input("Prefijo o símbolo a agregar al inicio:", value="+")
-                        
-                        with col_btn:
-                            st.write("") # Espaciador visual
-                            if st.button("🪄 Agregar prefijo a números inválidos"):
-                                def corregir_numero(val):
-                                    val_str = str(val).strip()
-                                    if not val_str.startswith('+'):
-                                        num_limpio = "".join(filter(str.isdigit, val_str))
-                                        if num_limpio:
-                                            return f"{prefijo}{num_limpio}"
-                                    return val_str
-                                
-                                df[col_tel_real] = df[col_tel_real].apply(corregir_numero)
-                                st.success("✅ ¡Formato corregido exitosamente!")
-                                st.rerun()
+            with col_chk2:
+                chk_agregar_mas = st.checkbox(
+                    "🪄 Agregar símbolo (+) a los teléfonos que no lo tengan", 
+                    value=tiene_tel_sin_mas,
+                    help="Antepone el signo + respetando la clave de país existente."
+                )
 
-                        # Pestañas para ver o editar datos
-                        tab1, tab2 = st.tabs(["👁️ Ver Filas con Error", "✏️ Editar Manualmente"])
-                        
-                        with tab1:
-                            st.dataframe(invalidos_df, use_container_width=True)
-                            # Descargar solo errores
-                            bytes_err = df_a_excel(invalidos_df)
-                            st.download_button(
-                                label="📥 Descargar Reporte de Errores (Excel)",
-                                data=bytes_err,
-                                file_name="reporte_errores.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            )
-                        
-                        with tab2:
-                            st.info("Puedes modificar cualquier celda directamente en esta tabla antes de descargar:")
-                            df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-                    else:
-                        st.success(f"✅ Todos los números telefónicos en la columna `{col_tel_real}` cumplen con el formato.")
+            # --- APLICACIÓN DE CORRECCIONES EN CADENA ---
+            if chk_limpiar_nombre and col_mat_real and col_nom_real:
+                def remover_matricula(row):
+                    mat = str(row[col_mat_real]).strip()
+                    nom = str(row[col_nom_real]).strip()
+                    if nom.startswith(mat):
+                        return nom[len(mat):].strip()
+                    return nom
+                
+                df[col_nom_real] = df.apply(remover_matricula, axis=1)
+
+            if chk_agregar_mas and col_tel_real:
+                def corregir_telefono(val):
+                    val_str = str(val).strip()
+                    if not val_str.startswith('+'):
+                        num_limpio = "".join(filter(str.isdigit, val_str))
+                        if num_limpio:
+                            return f"+{num_limpio}"
+                    return val_str
+                
+                df[col_tel_real] = df[col_tel_real].apply(corregir_telefono)
+
+            # --- VISTA PREVIA DE DATOS (REPRESENTA EL ESTADO ACTUAL) ---
+            st.subheader("📋 Vista previa de los datos procesados (Primeros 10 registros)")
+            st.dataframe(df.head(10), use_container_width=True)
+
+            # Editor manual complementario
+            with st.expander("✏️ Editar datos manualmente en la tabla"):
+                df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
 
             # --- BOTÓN PARA DESCARGAR ARCHIVO FINAL LIMPIO ---
             st.divider()
@@ -206,7 +214,7 @@ if archivo_subido is not None:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-# 3. Pie de página con los créditos del desarrollador
+# Pie de página con créditos del desarrollador
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: #666666; font-size: 14px; padding: 10px;'>"
