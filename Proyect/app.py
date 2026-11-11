@@ -90,7 +90,7 @@ def df_a_excel(df):
         df.to_excel(writer, index=False, sheet_name='Datos')
     return output.getvalue()
 
-# Función para cargar CSV o Excel de forma segura (autodetección de delimitador , o ;)
+# Función para cargar CSV o Excel de forma segura
 def cargar_archivo(uploaded_file):
     nombre = uploaded_file.name
     try:
@@ -173,66 +173,4 @@ if archivo_subido is not None:
             col_req_lower = col_req.strip().lower()
             encontrada = False
             
-            # 1. Coincidencia exacta limpia
-            if col_req_lower in cols_archivo_lower:
-                mapa_columnas[col_req] = cols_archivo_lower[col_req_lower]
-                encontrada = True
-            else:
-                # 2. Coincidencia por subcadena/prefijo
-                for col_real_lower, col_real_original in cols_archivo_lower.items():
-                    if (col_real_lower.startswith(col_req_lower[:6]) or col_req_lower.startswith(col_real_lower[:6])) and len(col_real_lower) >= 4:
-                        mapa_columnas[col_req] = col_real_original
-                        encontrada = True
-                        break
-            
-            if not encontrada:
-                cols_faltantes.append(col_req)
-                
-        if cols_faltantes:
-            st.error(f"❌ **Faltan {len(cols_faltantes)} columnas requeridas:** {', '.join(cols_faltantes)}")
-        else:
-            st.success("✅ **Estructura correcta:** Todas las columnas requeridas están presentes.")
-            
-            # Ubicar columnas clave
-            col_mat_real = mapa_columnas.get("Matricula")
-            col_nom_real = mapa_columnas.get("NombreApellido") or mapa_columnas.get("name")
-            col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
-
-            # ANÁLISIS PREVIO DE ANOMALÍAS
-            tiene_dup_nom_inicial = False
-            if col_mat_real and col_nom_real:
-                def es_duplicado(row):
-                    if pd.isna(row[col_mat_real]) or pd.isna(row[col_nom_real]):
-                        return False
-                    mat_str = str(row[col_mat_real]).split('.')[0].strip()
-                    nom_str = str(row[col_nom_real]).strip()
-                    return nom_str.startswith(mat_str) and len(mat_str) > 0
-                
-                dup_mask_init = df.apply(es_duplicado, axis=1)
-                tiene_dup_nom_inicial = bool(dup_mask_init.sum() > 0)
-
-            tiene_tel_inv_inicial = False
-            if col_tel_real:
-                patron_regex = motor_actual.get("regla_telefono", r"^\+")
-                telefonos_init = df[col_tel_real].astype(str).str.strip()
-                inv_mask_init = ~telefonos_init.str.contains(patron_regex, regex=True, na=False)
-                tiene_tel_inv_inicial = bool(inv_mask_init.sum() > 0)
-
-            # HERRAMIENTAS DE CORRECCIÓN
-            st.markdown("### 🛠️ Herramientas de Limpieza Automática")
-            
-            col_chk1, col_chk2 = st.columns(2)
-            
-            with col_chk1:
-                chk_limpiar_nombre = st.checkbox(
-                    "✂️ Eliminar matrícula del campo Nombre / NombreApellido", 
-                    value=False,
-                    disabled=not tiene_dup_nom_inicial,
-                    help="Se habilita automáticamente si se detectan matrículas al inicio del nombre."
-                )
-                
-            with col_chk2:
-                chk_agregar_mas = st.checkbox(
-                    "🪄 Agregar símbolo (+) a teléfonos sin formato", 
-                    value=False,
-                    disabled=not tiene_tel_inv_inicial,
+            # 1. Co
