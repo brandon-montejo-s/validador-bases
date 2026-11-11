@@ -19,13 +19,13 @@
     "formato_importacion": "Cobranza_Mx",
     "columna_telefono": "Telefono",
     "columnas_requeridas": [
-      "Matricula",
       "NombreApellido",
-      "Identificador",
-      "Correoelectronico",
       "Telefono",
-      "Programa",
-      "Correoelectronico2"
+      "Correoelectronico",
+      "Matricula",
+      "saldo",
+      "Concatenado",
+      "IdentificadorInterno"
     ],
     "regla_telefono": "^\\+"
   },
@@ -34,13 +34,13 @@
     "formato_importacion": "Cobranza_Mx",
     "columna_telefono": "Telefono",
     "columnas_requeridas": [
-      "Matricula",
       "NombreApellido",
-      "Identificador",
-      "Correoelectronico",
       "Telefono",
-      "Programa",
-      "Correoelectronico2"
+      "Correoelectronico",
+      "Matricula",
+      "saldo",
+      "Concatenado",
+      "IdentificadorInterno"
     ],
     "regla_telefono": "^\\+"
   },
@@ -49,13 +49,13 @@
     "formato_importacion": "Cobranza_Mx",
     "columna_telefono": "Telefono",
     "columnas_requeridas": [
-      "Matricula",
       "NombreApellido",
-      "Identificador",
-      "Correoelectronico",
       "Telefono",
-      "Programa",
-      "Correoelectronico2"
+      "Correoelectronico",
+      "Matricula",
+      "saldo",
+      "Concatenado",
+      "IdentificadorInterno"
     ],
     "regla_telefono": "^\\+"
   },
@@ -64,13 +64,13 @@
     "formato_importacion": "Cobranza_Mx",
     "columna_telefono": "Telefono",
     "columnas_requeridas": [
-      "Matricula",
       "NombreApellido",
-      "Identificador",
-      "Correoelectronico",
       "Telefono",
-      "Programa",
-      "Correoelectronico2"
+      "Correoelectronico",
+      "Matricula",
+      "saldo",
+      "Concatenado",
+      "IdentificadorInterno"
     ],
     "regla_telefono": "^\\+"
   },
