@@ -62,10 +62,7 @@ modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
 if modo_oscuro:
     st.markdown("""
     <style>
-        [data-testid="stAppViewContainer"] {
-            background-color: #0e1117 !important;
-        }
-        [data-testid="stHeader"] {
+        [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             background-color: #0e1117 !important;
         }
         [data-testid="stSidebar"] {
@@ -99,7 +96,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Expander para ver el JSON en la Sidebar (Línea corregida)
+# Expander para ver el JSON en la Sidebar
 with st.sidebar.expander("📄 Ver Configuración JSON Completa"):
     st.json(config_motores)
 
@@ -181,7 +178,9 @@ if archivo_subido is not None:
 
             # --- APLICACIÓN DE CORRECCIONES ---
             if chk_limpiar_nombre and col_mat_real and col_nom_real:
-                def remover_matricula(row):
-                    mat = str(row[col_mat_real]).strip()
-                    nom = str(row[col_nom_real]).strip()
-                    if nom.startswith
+                mats = df[col_mat_real].astype(str).str.strip()
+                noms = df[col_nom_real].astype(str).str.strip()
+                
+                # Mascara donde el nombre inicia con la matricula
+                mask = noms.str.startswith(mats, na=False)
+                # Remueve la matricula en
