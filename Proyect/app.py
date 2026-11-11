@@ -51,7 +51,7 @@ st.markdown("""
         color: #e5e7eb;
     }
     
-    /* Corrección de legibilidad para etiquetas `code` en la Sidebar */
+    /* Corrección de legibilidad para etiquetas code en la Sidebar */
     [data-testid="stSidebar"] code {
         background-color: #1f2937 !important;
         color: #60a5fa !important;
@@ -112,14 +112,4 @@ except Exception as e:
     st.error(f"Error crítico al cargar 'motores_config.json': {e}")
     st.stop()
 
-# --- BARRA LATERAL (SIDEBAR): VISUALIZADOR DE CONFIGURACIÓN JSON ---
-st.sidebar.title("⚙️ Administración")
-st.sidebar.markdown("Consulta las reglas activas de los motores cargados.")
-
-with st.sidebar.expander("📄 Ver Configuración JSON Completa"):
-    st.json(config_motores)
-
-# ENCABEZADO ESTILIZADO EN PANTALLA PRINCIPAL
-st.markdown("""
-<div class="header-box">
-    <div class="header-
+# --- BARRA LATERAL (SIDEBAR): VISUALIZADOR DE
