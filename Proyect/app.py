@@ -68,16 +68,17 @@ def df_a_excel(df):
         df.to_excel(writer, index=False, sheet_name='Datos')
     return output.getvalue()
 
-# Función para cargar CSV o Excel de forma segura
+# Función para cargar CSV o Excel de forma segura (con autodetección de delimitador , o ;)
 def cargar_archivo(uploaded_file):
     nombre = uploaded_file.name
     try:
         if nombre.endswith('.csv'):
             try:
-                df = pd.read_csv(uploaded_file, encoding='utf-8')
-            except UnicodeDecodeError:
+                # Intentar autodetección del delimitador (coma o punto y coma)
+                df = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='utf-8')
+            except Exception:
                 uploaded_file.seek(0)
-                df = pd.read_csv(uploaded_file, encoding='latin-1')
+                df = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='latin-1')
         elif nombre.endswith(('.xls', '.xlsx')):
             df = pd.read_excel(uploaded_file)
         else:
@@ -158,7 +159,11 @@ if archivo_subido is not None:
             
             # Ubicar columnas clave
             col_mat_real = mapa_columnas.get("Matricula")
-            col_nom_real = mapa_columnas.get("NombreApellido")
+            
+            # Soporte flexible para nombre de columna de Nombre (NombreApellido o name)
+            col_nom_real = mapa_columnas.get("NombreApellido") or mapa_columnas.get("name")
+            
+            # Soporte flexible para nombre de columna de Teléfono
             col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
 
             # ANÁLISIS PREVIO DE ANOMALÍAS
@@ -188,7 +193,7 @@ if archivo_subido is not None:
             
             with col_chk1:
                 chk_limpiar_nombre = st.checkbox(
-                    "✂️ Eliminar matrícula del campo NombreApellido", 
+                    "✂️ Eliminar matrícula del campo Nombre / NombreApellido", 
                     value=False,
                     disabled=not tiene_dup_nom_inicial,
                     help="Se habilita automáticamente si se detectan matrículas al inicio del nombre."
@@ -266,7 +271,7 @@ if archivo_subido is not None:
                 with st.expander(f"👁️ Ver tabla de registros con matrícula duplicada ({cant_dup_nom})"):
                     st.dataframe(dup_df, use_container_width=True)
             else:
-                st.success("✅ **NombreApellido:** Sin matrículas duplicadas en el campo de nombre.")
+                st.success("✅ **Nombre:** Sin matrículas duplicadas en el campo de nombre.")
 
             # 2. Alerta y tabla desplegable de Teléfonos Pendientes
             if cant_tel_inv > 0:
