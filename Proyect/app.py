@@ -62,7 +62,7 @@ modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
 if modo_oscuro:
     st.markdown("""
     <style>
-        /* Fondo general */
+        /* Fondo general en modo oscuro */
         [data-testid="stAppViewContainer"] {
             background-color: #0e1117 !important;
         }
@@ -72,121 +72,39 @@ if modo_oscuro:
         [data-testid="stSidebar"] {
             background-color: #161b22 !important;
         }
-        /* Textos generales en blanco */
-        h1, h2, h3, p, span, label {
-            color: #ffffff !important;
+        
+        /* Textos principales en blanco */
+        h1, h2, h3, .stMarkdown p, label {
+            color: #f0f6fc !important;
         }
-        /* Corregir texto invisible en Cajas de Alertas y Notificaciones */
+        
+        /* Cajas de Alertas e Info */
         div[data-testid="stAlert"] * {
             color: #1c1917 !important;
         }
-        /* Corregir etiquetas de código en la barra lateral */
-        [data-testid="stSidebar"] code {
-            color: #1c1917 !important;
-            background-color: #e2e8f0 !important;
-        }
+        
         /* Cajas de subida de archivos */
         [data-testid="stFileUploadDropzone"] {
-            background-color: #21262d !important;
+            background-color: #161b22 !important;
             border-color: #30363d !important;
+        }
+        [data-testid="stFileUploadDropzone"] * {
+            color: #f0f6fc !important;
         }
     </style>
     """, unsafe_allow_html=True)
 
+# Estilo permanente para que las etiquetas de código (Sidebar e Info) siempre sean legibles
+st.markdown("""
+<style>
+    code {
+        color: #0f172a !important;
+        background-color: #e2e8f0 !important;
+        border: 1px solid #cbd5e1 !important;
+        font-weight: 600 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Expander para ver el JSON en la Sidebar
-with st.sidebar.expander("📄 Ver Configuración JSON Completa"):
-    st.json(config_motores)
-
-# Interfaz Principal
-st.title("🔍 Validador y Limpiador de Archivos por Motor")
-st.markdown("Selecciona el motor correspondiente, sube tu archivo y aplica las herramientas de limpieza automática.")
-
-# Lista desplegable de motores
-opciones_motores = [f"{m['motor']} ({m['formato_importacion']})" for m in config_motores]
-seleccion = st.selectbox("Selecciona el Motor / Formato:", opciones_motores)
-
-# Datos del motor seleccionado
-indice_seleccionado = opciones_motores.index(seleccion)
-motor_actual = config_motores[indice_seleccionado]
-
-# Resumen en Sidebar del motor activo
-st.sidebar.markdown("---")
-st.sidebar.subheader(f"📌 Motor Activo: {motor_actual['motor']}")
-st.sidebar.markdown(f"**Formato:** `{motor_actual['formato_importacion']}`")
-st.sidebar.markdown("**Columnas requeridas:**")
-for c in motor_actual.get("columnas_requeridas", []):
-    st.sidebar.markdown(f"- `{c}`")
-
-# Etiqueta de formato de importación
-st.info(f"**Formato de importación:** `{motor_actual['formato_importacion']}`")
-
-# Subida de archivo
-archivo_subido = st.file_uploader("Sube tu archivo (CSV o Excel):", type=["csv", "xlsx", "xls"])
-
-if archivo_subido is not None:
-    df_raw = cargar_archivo(archivo_subido)
-    
-    if df_raw is not None:
-        # Copia de trabajo para aplicar transformaciones
-        df = df_raw.copy()
-        
-        # Validar Columnas (case-insensitive)
-        cols_requeridas = motor_actual["columnas_requeridas"]
-        cols_archivo_lower = {str(c).strip().lower(): str(c) for c in df.columns}
-        
-        cols_faltantes = []
-        mapa_columnas = {}
-        
-        for col in cols_requeridas:
-            col_lower = col.strip().lower()
-            if col_lower in cols_archivo_lower:
-                mapa_columnas[col] = cols_archivo_lower[col_lower]
-            else:
-                cols_faltantes.append(col)
-                
-        if cols_faltantes:
-            st.error(f"❌ **Faltan {len(cols_faltantes)} columnas requeridas:** {', '.join(cols_faltantes)}")
-        else:
-            st.success("✅ **Estructura correcta:** Todas las columnas requeridas están presentes.")
-            
-            # Ubicar columnas clave
-            col_mat_real = mapa_columnas.get("Matricula")
-            col_nom_real = mapa_columnas.get("NombreApellido")
-            col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
-
-            # --- SECCIÓN DE HERRAMIENTAS DE CORRECCIÓN ---
-            st.markdown("### 🛠️ Opciones de Limpieza Automática")
-            st.markdown("Marca las casillas si deseas aplicar las correcciones antes de evaluar o descargar:")
-            
-            col_chk1, col_chk2 = st.columns(2)
-            
-            with col_chk1:
-                chk_limpiar_nombre = st.checkbox(
-                    "✂️ Eliminar matrícula del campo NombreApellido", 
-                    value=False,
-                    help="Remueve la matrícula duplicada al inicio del nombre."
-                )
-                
-            with col_chk2:
-                chk_agregar_mas = st.checkbox(
-                    "🪄 Agregar símbolo (+) a los teléfonos que no lo tengan", 
-                    value=False,
-                    help="Antepone el signo + respetando el número existente."
-                )
-
-            # --- APLICACIÓN DE CORRECCIONES ---
-            if chk_limpiar_nombre and col_mat_real and col_nom_real:
-                def remover_matricula(row):
-                    mat = str(row[col_mat_real]).strip()
-                    nom = str(row[col_nom_real]).strip()
-                    if nom.startswith(mat):
-                        return nom[len(mat):].strip()
-                    return nom
-                
-                df[col_nom_real] = df.apply(remover_matricula, axis=1)
-
-            if chk_agregar_mas and col_tel_real:
-                def corregir_telefono(val):
-                    val_str = str(val).strip()
-                    if not val_str.startswith('+'):
-                        num_lim
+with st.
