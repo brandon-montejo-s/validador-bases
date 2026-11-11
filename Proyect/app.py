@@ -4,31 +4,14 @@ import io
 import pandas as pd
 import streamlit as st
 
-# 1. Configuración de la página
+# 1. Configuración básica de la página
 st.set_page_config(
     page_title="Validador & Limpiador de Motores",
     page_icon="⚡",
     layout="wide"
 )
 
-# 2. ESTILOS CSS PERSONALIZADOS (UI PRO Y CONTRASTE EN SIDEBAR)
-css_custom = (
-    "<style>"
-    ".main { background-color: #f8f9fa; }"
-    ".header-box { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 24px; border-radius: 12px; color: white; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }"
-    ".header-title { font-size: 28px; font-weight: 700; margin: 0; color: #ffffff; }"
-    ".header-subtitle { font-size: 15px; color: #e0e6ed; margin-top: 5px; }"
-    "[data-testid='stSidebar'] { background-color: #111827; color: #ffffff; }"
-    "[data-testid='stSidebar'] p, [data-testid='stSidebar'] h1, [data-testid='stSidebar'] h2, [data-testid='stSidebar'] h3, [data-testid='stSidebar'] span, [data-testid='stSidebar'] div { color: #e5e7eb; }"
-    "[data-testid='stSidebar'] code { background-color: #1f2937 !important; color: #60a5fa !important; border: 1px solid #374151 !important; font-weight: 600; padding: 2px 6px; border-radius: 4px; }"
-    ".stButton>button, .stDownloadButton>button { border-radius: 8px; font-weight: 600; transition: all 0.3s ease; }"
-    "#MainMenu {visibility: hidden;}"
-    "footer {visibility: hidden;}"
-    "</style>"
-)
-st.markdown(css_custom, unsafe_allow_html=True)
-
-# Función segura para cargar la configuración JSON
+# 2. Cargar configuración JSON
 def cargar_configuracion():
     rutas_posibles = [
         os.path.join(os.path.dirname(__file__), "motores_config.json"),
@@ -40,14 +23,14 @@ def cargar_configuracion():
                 return json.load(f)
     raise FileNotFoundError("No se encontró el archivo 'motores_config.json'.")
 
-# Función para convertir DataFrame a Excel descargable
+# 3. Convertir DataFrame a Excel
 def df_a_excel(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Datos')
     return output.getvalue()
 
-# Función ULTRA ROBUSTA para cargar CSV o Excel
+# 4. Lectura segura de CSV o Excel
 def cargar_archivo(uploaded_file):
     nombre = uploaded_file.name
     try:
@@ -72,48 +55,210 @@ def cargar_archivo(uploaded_file):
             return pd.read_csv(uploaded_file, sep=None, engine='python', encoding='utf-8', on_bad_lines='skip')
             
     except Exception as e:
-        st.error(f"❌ Error al procesar el archivo: {e}")
+        st.error(f"Error al procesar el archivo: {e}")
         return None
     return None
 
-# Intentar cargar la configuración
+# Intentar cargar motores
 try:
     config_motores = cargar_configuracion()
 except Exception as e:
-    st.error(f"❌ **Error al cargar la configuración:** {e}")
+    st.error(f"Error al cargar la configuración: {e}")
     st.stop()
 
-# --- BARRA LATERAL (SIDEBAR): VISUALIZADOR DE CONFIGURACIÓN JSON ---
+# --- BARRA LATERAL (SIDEBAR) ---
 st.sidebar.title("⚙️ Administración")
-st.sidebar.markdown("Consulta las reglas activas de los motores cargados.")
+st.sidebar.write("Consulta las reglas activas de los motores cargados.")
 
 with st.sidebar.expander("📄 Ver Configuración JSON Completa"):
     st.json(config_motores)
 
-# ENCABEZADO ESTILIZADO EN PANTALLA PRINCIPAL
-header_html = (
-    '<div class="header-box">'
-    '<div class="header-title">⚡ Validador & Limpiador de Archivos</div>'
-    '<div class="header-subtitle">Selecciona el motor objetivo, sube tu base de datos y automatiza la limpieza en segundos.</div>'
-    '</div>'
-)
-st.markdown(header_html, unsafe_allow_html=True)
+# ENCABEZADO PRINCIPAL NATIVO
+st.title("⚡ Validador & Limpiador de Archivos")
+st.caption("Selecciona el motor objetivo, sube tu base de datos y automatiza la limpieza en segundos.")
+st.divider()
 
-# Lista desplegable de motores
+# Selección de motor
 opciones_motores = [f"{m['motor']} ({m['formato_importacion']})" for m in config_motores]
-seleccion = st.selectbox("🎯 **Selecciona el Motor / Formato:**", opciones_motores)
+seleccion = st.selectbox("🎯 Selecciona el Motor / Formato:", opciones_motores)
 
-# Datos del motor seleccionado
 indice_seleccionado = opciones_motores.index(seleccion)
 motor_actual = config_motores[indice_seleccionado]
 
 # Resumen en Sidebar del motor activo
-st.sidebar.markdown("---")
+st.sidebar.divider()
 st.sidebar.subheader(f"📌 Motor Activo: {motor_actual['motor']}")
-st.sidebar.markdown(f"**Formato:** `{motor_actual['formato_importacion']}`")
-st.sidebar.markdown("**Columnas requeridas:**")
+st.sidebar.write(f"**Formato:** `{motor_actual['formato_importacion']}`")
+st.sidebar.write("**Columnas requeridas:**")
 for c in motor_actual.get("columnas_requeridas", []):
-    st.sidebar.markdown(f"- `{c}`")
+    st.sidebar.write(f"- `{c}`")
 
-# Etiqueta de formato de importación
-st.info(f"📋 **Formato de importación configurado:** `{motor_actual['formato_
+# Banner informativo
+st.info(f"Formato de importación configurado: {motor_actual['formato_importacion']}")
+
+# Subida de archivo
+archivo_subido = st.file_uploader("📂 Sube tu archivo (CSV o Excel):", type=["csv", "xlsx", "xls"])
+
+if archivo_subido is not None:
+    df_raw = cargar_archivo(archivo_subido)
+    
+    if df_raw is None:
+        st.error("No se pudo leer la estructura del archivo. Verifica que no esté dañado o vacío.")
+    else:
+        df = df_raw.copy()
+        
+        # Limpieza de espacios blancos invisibles en encabezados
+        df.columns = [str(col).strip() for col in df.columns]
+        
+        # Mapeo flexible de columnas
+        cols_requeridas = motor_actual["columnas_requeridas"]
+        cols_archivo_lower = {str(c).lower(): str(c) for c in df.columns}
+        
+        cols_faltantes = []
+        mapa_columnas = {}
+        
+        for col_req in cols_requeridas:
+            col_req_lower = col_req.strip().lower()
+            encontrada = False
+            
+            if col_req_lower in cols_archivo_lower:
+                mapa_columnas[col_req] = cols_archivo_lower[col_req_lower]
+                encontrada = True
+            else:
+                for col_real_lower, col_real_original in cols_archivo_lower.items():
+                    if (col_real_lower.startswith(col_req_lower[:6]) or col_req_lower.startswith(col_real_lower[:6])) and len(col_real_lower) >= 4:
+                        mapa_columnas[col_req] = col_real_original
+                        encontrada = True
+                        break
+            
+            if not encontrada:
+                cols_faltantes.append(col_req)
+                
+        if cols_faltantes:
+            st.error(f"Faltan {len(cols_faltantes)} columnas requeridas: {', '.join(cols_faltantes)}")
+        else:
+            st.success("Estructura correcta: Todas las columnas requeridas están presentes.")
+            
+            # Columnas clave
+            col_mat_real = mapa_columnas.get("Matricula")
+            col_nom_real = mapa_columnas.get("NombreApellido") or mapa_columnas.get("name")
+            col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
+
+            # Detección inicial de anomalías
+            tiene_dup_nom_inicial = False
+            if col_mat_real and col_nom_real:
+                dup_mask_init = df.apply(
+                    lambda r: pd.notna(r[col_mat_real]) and pd.notna(r[col_nom_real]) and 
+                              str(r[col_nom_real]).strip().startswith(str(r[col_mat_real]).split('.')[0].strip()) 
+                              and len(str(r[col_mat_real]).split('.')[0].strip()) > 0, 
+                    axis=1
+                )
+                tiene_dup_nom_inicial = bool(dup_mask_init.sum() > 0)
+
+            tiene_tel_inv_inicial = False
+            if col_tel_real:
+                patron_regex = motor_actual.get("regla_telefono", r"^\+")
+                telefonos_init = df[col_tel_real].astype(str).str.strip()
+                inv_mask_init = ~telefonos_init.str.contains(patron_regex, regex=True, na=False)
+                tiene_tel_inv_inicial = bool(inv_mask_init.sum() > 0)
+
+            # Opciones de Limpieza
+            st.subheader("🛠️ Herramientas de Limpieza Automática")
+            
+            col_chk1, col_chk2 = st.columns(2)
+            
+            with col_chk1:
+                chk_limpiar_nombre = st.checkbox(
+                    "Eliminar matrícula del campo Nombre / NombreApellido", 
+                    value=False,
+                    disabled=not tiene_dup_nom_inicial,
+                    help="Se habilita si hay matrículas al inicio del nombre."
+                )
+                
+            with col_chk2:
+                chk_agregar_mas = st.checkbox(
+                    "Agregar símbolo (+) a teléfonos sin formato", 
+                    value=False,
+                    disabled=not tiene_tel_inv_inicial,
+                    help="Se habilita si hay teléfonos sin prefijo +."
+                )
+
+            # Aplicar transformaciones
+            if chk_limpiar_nombre and col_mat_real and col_nom_real:
+                def limpiar_nom(r):
+                    if pd.isna(r[col_mat_real]) or pd.isna(r[col_nom_real]):
+                        return r[col_nom_real]
+                    mat = str(r[col_mat_real]).split('.')[0].strip()
+                    nom = str(r[col_nom_real]).strip()
+                    return nom[len(mat):].strip() if nom.startswith(mat) else nom
+
+                df[col_nom_real] = df.apply(limpiar_nom, axis=1)
+
+            if chk_agregar_mas and col_tel_real:
+                def limpiar_tel(val):
+                    val_str = str(val).strip()
+                    if not val_str.startswith('+'):
+                        num_limpio = "".join(filter(str.isdigit, val_str))
+                        if num_limpio:
+                            return f"+{num_limpio}"
+                    return val_str
+
+                df[col_tel_real] = df[col_tel_real].apply(limpiar_tel)
+
+            # Diagnóstico
+            st.subheader("📊 Diagnóstico de Estado")
+            
+            col_m1, col_m2, col_m3 = st.columns(3)
+            col_m1.metric("Total Registros", f"{len(df):,}")
+
+            cant_dup_nom = 0
+            dup_df = pd.DataFrame()
+            if col_mat_real and col_nom_real:
+                duplicados_mask = df.apply(
+                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).split('.')[0].strip()) 
+                    if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
+                    axis=1
+                )
+                dup_df = df[duplicados_mask].copy()
+                cant_dup_nom = len(dup_df)
+            
+            col_m2.metric("Matrículas Duplicadas", cant_dup_nom)
+
+            cant_tel_inv = 0
+            invalidos_df = pd.DataFrame()
+            if col_tel_real:
+                patron_regex = motor_actual.get("regla_telefono", r"^\+")
+                telefonos_str = df[col_tel_real].astype(str).str.strip()
+                invalidos_mask = ~telefonos_str.str.contains(patron_regex, regex=True, na=False)
+                invalidos_df = df[invalidos_mask].copy()
+                cant_tel_inv = len(invalidos_df)
+                
+            col_m3.metric("Teléfonos con Error", cant_tel_inv)
+
+            # Desplegables de alertas
+            if cant_dup_nom > 0:
+                st.warning(f"Matrículas duplicadas en Nombre: Se encontraron {cant_dup_nom} registros.")
+                with st.expander(f"Ver registros con matrícula duplicada ({cant_dup_nom})"):
+                    st.dataframe(dup_df, use_container_width=True)
+            else:
+                st.success("Nombre: Sin matrículas duplicadas.")
+
+            if cant_tel_inv > 0:
+                st.warning(f"Teléfonos pendientes: Se encontraron {cant_tel_inv} registros sin '+' inicial.")
+                with st.expander(f"Ver registros con teléfono erróneo ({cant_tel_inv})"):
+                    st.dataframe(invalidos_df, use_container_width=True)
+            else:
+                st.success("Teléfonos: Formato internacional correcto.")
+
+            # Vista Previa
+            st.subheader("📋 Vista Previa de Datos Procesados (Primeros 10 registros)")
+            st.dataframe(df.head(10), use_container_width=True)
+
+            with st.expander("✏️ Edición Manual de Emergencia"):
+                df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+
+            # Exportación
+            st.divider()
+            st.subheader("💾 Exportar Archivo Final")
+            
+            permitir_descarga = (cant
