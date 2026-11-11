@@ -14,6 +14,22 @@
     ],
     "regla_telefono": "^\\+"
   },
+  [
+  {
+    "motor": "riesgo-b1-b5",
+    "formato_importacion": "UTELGESTION",
+    "columna_telefono": "Telefono",
+    "columnas_requeridas": [
+      "Matricula",
+      "NombreApellido",
+      "Identificador",
+      "Correoelectronico",
+      "Telefono",
+      "Programa",
+      "Correoelectronico2"
+    ],
+    "regla_telefono": "^\\+"
+  },
   {
     "motor": "Motor A",
     "formato_importacion": "Cobranza_Mx",
@@ -74,6 +90,205 @@
     ],
     "regla_telefono": "^\\+"
   },
+  {
+    "motor": "PROCODESK",
+    "formato_importacion": "UTELGESTION",
+    "columna_telefono": "Telefono",
+    "columnas_requeridas": [
+      "Matricula",
+      "NombreApellido",
+      "Identificador",
+      "Correoelectronico",
+      "Telefono",
+      "Programa",
+      "Correoelectronico2"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "M1",
+    "formato_importacion": "Cobranza_LTM",
+    "columna_telefono": "Contact",
+    "columnas_requeridas": [
+      "name",
+      "Contact",
+      "Address",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestionDeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "M2",
+    "formato_importacion": "Cobranza_LTM",
+    "columna_telefono": "Contact",
+    "columnas_requeridas": [
+      "name",
+      "Contact",
+      "Address",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestionDeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "M3",
+    "formato_importacion": "Cobranza_LTM",
+    "columna_telefono": "Contact",
+    "columnas_requeridas": [
+      "name",
+      "Contact",
+      "Address",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestionDeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "M4",
+    "formato_importacion": "Cobranza_LTM",
+    "columna_telefono": "Contact",
+    "columnas_requeridas": [
+      "name",
+      "Contact",
+      "Address",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestionDeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "M5",
+    "formato_importacion": "Cobranza_LTM",
+    "columna_telefono": "Contact",
+    "columnas_requeridas": [
+      "name",
+      "Contact",
+      "Address",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestionDeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "M6",
+    "formato_importacion": "Cobranza_LTM",
+    "columna_telefono": "Contact",
+    "columnas_requeridas": [
+      "name",
+      "Contact",
+      "Address",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestionDeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "M7",
+    "formato_importacion": "Cobranza_LTM",
+    "columna_telefono": "Contact",
+    "columnas_requeridas": [
+      "name",
+      "Contact",
+      "Address",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestionDeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "M1_M6",
+    "formato_importacion": "Cobranza_LTM",
+    "columna_telefono": "Contact",
+    "columnas_requeridas": [
+      "name",
+      "Contact",
+      "Address",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestionDeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+"
+  }
   {
     "motor": "PROCODESK",
     "formato_importacion": "UTELGESTION",
