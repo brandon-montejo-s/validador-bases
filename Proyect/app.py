@@ -62,8 +62,30 @@ modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
 if modo_oscuro:
     st.markdown("""
     <style>
-        .main { background-color: #121212 !important; color: #ffffff !important; }
-        .stMarkdown, p, h1, h2, h3, span { color: #e2e8f0 !important; }
+        /* Fondo principal oscuro */
+        [data-testid="stAppViewContainer"] {
+            background-color: #0e1117 !important;
+        }
+        [data-testid="stHeader"] {
+            background-color: #0e1117 !important;
+        }
+        /* Sidebar en tono gris oscuro */
+        [data-testid="stSidebar"] {
+            background-color: #161b22 !important;
+        }
+        /* Textos e íconos claros */
+        [data-testid="stAppViewContainer"] *, [data-testid="stSidebar"] * {
+            color: #e6edf3 !important;
+        }
+        /* Ajuste de color en bloques de información y alertas para legibilidad */
+        div[data-testid="stMarkdownContainer"] p {
+            color: #e6edf3 !important;
+        }
+        /* Cajas de subida de archivos y selecciones */
+        [data-testid="stFileUploadDropzone"] {
+            background-color: #21262d !important;
+            border-color: #30363d !important;
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -247,7 +269,7 @@ if archivo_subido is not None:
 # Pie de página con créditos del desarrollador
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: #666666; font-size: 14px; padding: 10px;'>"
+    "<div style='text-align: center; color: #888888; font-size: 14px; padding: 10px;'>"
     "🛠️ <b>Desarrollado por:</b> Brandon Montejo Sánchez"
     "</div>",
     unsafe_allow_html=True
