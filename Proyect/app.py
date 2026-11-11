@@ -176,4 +176,117 @@ if archivo_subido is not None:
                     help="Se habilita si hay matrículas al inicio del nombre."
                 )
                 
-            with col
+            with col_chk2:
+                chk_agregar_mas = st.checkbox(
+                    "Agregar símbolo (+) a teléfonos sin formato", 
+                    value=False,
+                    disabled=not tiene_tel_inv_inicial,
+                    help="Se habilita si hay teléfonos sin prefijo +."
+                )
+
+            # Aplicar transformaciones
+            if chk_limpiar_nombre and col_mat_real and col_nom_real:
+                def limpiar_nom(r):
+                    if pd.isna(r[col_mat_real]) or pd.isna(r[col_nom_real]):
+                        return r[col_nom_real]
+                    mat = str(r[col_mat_real]).split('.')[0].strip()
+                    nom = str(r[col_nom_real]).strip()
+                    return nom[len(mat):].strip() if nom.startswith(mat) else nom
+
+                df[col_nom_real] = df.apply(limpiar_nom, axis=1)
+
+            if chk_agregar_mas and col_tel_real:
+                def limpiar_tel(val):
+                    val_str = str(val).strip()
+                    if not val_str.startswith('+'):
+                        num_limpio = "".join(filter(str.isdigit, val_str))
+                        if num_limpio:
+                            return f"+{num_limpio}"
+                    return val_str
+
+                df[col_tel_real] = df[col_tel_real].apply(limpiar_tel)
+
+            # Diagnóstico
+            st.subheader("📊 Diagnóstico de Estado")
+            
+            col_m1, col_m2, col_m3 = st.columns(3)
+            col_m1.metric("Total Registros", f"{len(df):,}")
+
+            if col_mat_real and col_nom_real:
+                duplicados_mask = df.apply(
+                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).split('.')[0].strip()) if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
+                    axis=1
+                )
+                dup_df = df[duplicados_mask].copy()
+                cant_dup_nom = len(dup_df)
+            
+            col_m2.metric("Matrículas Duplicadas", cant_dup_nom)
+
+            if col_tel_real:
+                patron_regex = motor_actual.get("regla_telefono", r"^\+")
+                telefonos_str = df[col_tel_real].astype(str).str.strip()
+                invalidos_mask = ~telefonos_str.str.contains(patron_regex, regex=True, na=False)
+                invalidos_df = df[invalidos_mask].copy()
+                cant_tel_inv = len(invalidos_df)
+                
+            col_m3.metric("Teléfonos con Error", cant_tel_inv)
+
+            # Desplegables de alertas
+            if cant_dup_nom > 0:
+                st.warning(f"Matrículas duplicadas en Nombre: Se encontraron {cant_dup_nom} registros.")
+                with st.expander(f"Ver registros con matrícula duplicada ({cant_dup_nom})"):
+                    st.dataframe(dup_df, use_container_width=True)
+            else:
+                st.success("Nombre: Sin matrículas duplicadas.")
+
+            if cant_tel_inv > 0:
+                st.warning(f"Teléfonos pendientes: Se encontraron {cant_tel_inv} registros sin '+' inicial.")
+                with st.expander(f"Ver registros con teléfono erróneo ({cant_tel_inv})"):
+                    st.dataframe(invalidos_df, use_container_width=True)
+            else:
+                st.success("Teléfonos: Formato internacional correcto.")
+
+            # Vista Previa
+            st.subheader("📋 Vista Previa de Datos Procesados (Primeros 10 registros)")
+            st.dataframe(df.head(10), use_container_width=True)
+
+            with st.expander("✏️ Edición Manual de Emergencia"):
+                df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+
+            # Exportación
+            st.divider()
+            st.subheader("💾 Exportar Archivo Final")
+            
+            permitir_descarga = True if (cant_tel_inv == 0 or chk_agregar_mas or chk_limpiar_nombre) else False
+            
+            if not permitir_descarga:
+                st.info("Aviso: Activa alguna casilla de limpieza para habilitar la descarga.")
+
+            col_down1, col_down2 = st.columns(2)
+            mime_excel = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+            with col_down1:
+                excel_limpio = df_a_excel(df)
+                st.download_button(
+                    label="🚀 Descargar Excel (.xlsx)",
+                    data=excel_limpio,
+                    file_name=f"archivo_procesado_{motor_actual['motor']}.xlsx",
+                    mime=mime_excel,
+                    use_container_width=True,
+                    disabled=not permitir_descarga
+                )
+                
+            with col_down2:
+                csv_limpio = df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📄 Descargar CSV (.csv)",
+                    data=csv_limpio,
+                    file_name=f"archivo_procesado_{motor_actual['motor']}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    disabled=not permitir_descarga
+                )
+
+# Pie de página
+st.divider()
+st.caption("⚡ Plataforma desarrollada por: Brandon Montejo Sánchez")
