@@ -53,6 +53,14 @@ except Exception as e:
     st.error(f"Error crítico al cargar 'motores_config.json': {e}")
     st.stop()
 
+# --- BARRA LATERAL (SIDEBAR): VISUALIZADOR DE CONFIGURACIÓN JSON ---
+st.sidebar.title("⚙️ Administración")
+st.sidebar.markdown("Consulta las reglas activas de los motores cargados en la plataforma.")
+
+# Expander para ver el JSON en la Sidebar
+with st.sidebar.expander("📄 Ver Configuración JSON Completa"):
+    st.json(config_motores)
+
 # Interfaz Principal
 st.title("🔍 Validador y Limpiador de Archivos por Motor")
 st.markdown("Selecciona el motor correspondiente, sube tu archivo y corrige automáticamente o descarga tus datos procesados.")
@@ -65,7 +73,15 @@ seleccion = st.selectbox("Selecciona el Motor / Formato:", opciones_motores)
 indice_seleccionado = opciones_motores.index(seleccion)
 motor_actual = config_motores[indice_seleccionado]
 
-# Etiqueta de formato de importación
+# Mapeo y resumen en Sidebar del motor activo
+st.sidebar.markdown("---")
+st.sidebar.subheader(f"📌 Motor Activo: {motor_actual['motor']}")
+st.sidebar.markdown(f"**Formato:** {motor_actual['formato_importacion']}")
+st.sidebar.markdown("**Columnas requeridas:**")
+for c in motor_actual.get("columnas_requeridas", []):
+    st.sidebar.markdown(f"- `{c}`")
+
+# Etiqueta de formato de importación en pantalla principal
 st.info(f"**Formato de importación:** {motor_actual['formato_importacion']}")
 
 # Subida de archivo
@@ -75,7 +91,7 @@ if archivo_subido is not None:
     df = cargar_archivo(archivo_subido)
     
     if df is not None:
-        # AJUSTE 1: Siempre mostrar los primeros 10 registros en la vista previa
+        # 1. Siempre mostrar los primeros 10 registros en la vista previa
         st.subheader("📋 Vista previa de los datos (Primeros 10 registros)")
         st.dataframe(df.head(10), use_container_width=True)
         
@@ -98,7 +114,7 @@ if archivo_subido is not None:
         else:
             st.success("✅ **Estructura correcta:** Todas las columnas requeridas están presentes.")
             
-            # AJUSTE 2: Detección y cuadro de países involucrados
+            # 2. Detección y cuadro de países/prefijos involucrados
             if "columna_telefono" in motor_actual and motor_actual["columna_telefono"] in mapa_columnas:
                 col_tel_real = mapa_columnas[motor_actual["columna_telefono"]]
                 
@@ -190,7 +206,7 @@ if archivo_subido is not None:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-# AJUSTE 3: Pie de página con los créditos del desarrollador
+# 3. Pie de página con los créditos del desarrollador
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: #666666; font-size: 14px; padding: 10px;'>"
