@@ -14,12 +14,9 @@ st.set_page_config(
 # 2. ESTILOS CSS PERSONALIZADOS (UI PRO)
 st.markdown("""
 <style>
-    /* Estilo general del fondo y tipografía */
     .main {
         background-color: #f8f9fa;
     }
-    
-    /* Encabezado principal personalizado */
     .header-box {
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         padding: 24px;
@@ -39,18 +36,6 @@ st.markdown("""
         color: #e0e6ed;
         margin-top: 5px;
     }
-
-    /* Tarjetas de Diagnóstico y Métricas */
-    .card-box {
-        background-color: #ffffff;
-        padding: 18px;
-        border-radius: 10px;
-        border-left: 5px solid #2a5298;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-    }
-    
-    /* Personalización de la Sidebar */
     [data-testid="stSidebar"] {
         background-color: #111827;
         color: #ffffff;
@@ -58,20 +43,11 @@ st.markdown("""
     [data-testid="stSidebar"] * {
         color: #e5e7eb !important;
     }
-    
-    /* Botones estilizados */
-    .stButton>button {
+    .stButton>button, .stDownloadButton>button {
         border-radius: 8px;
         font-weight: 600;
         transition: all 0.3s ease;
     }
-    .stDownloadButton>button {
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    /* Ocultar menú nativo innecesario */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
@@ -185,7 +161,7 @@ if archivo_subido is not None:
             col_nom_real = mapa_columnas.get("NombreApellido")
             col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
 
-            # ANÁLISIS PREVIO DE ANOMALÍAS
+            # ANÁLISIS PREVIO DE ANOMALÍAS PARA CHECKBOXES
             tiene_dup_nom_inicial = False
             if col_mat_real and col_nom_real:
                 dup_mask_init = df.apply(
@@ -202,7 +178,7 @@ if archivo_subido is not None:
                 inv_mask_init = ~telefonos_init.str.contains(patron_regex, regex=True, na=False)
                 tiene_tel_inv_inicial = inv_mask_init.sum() > 0
 
-            # HERRAMIENTAS DE CORRECCIÓN (PANEL ESTILIZADO)
+            # HERRAMIENTAS DE CORRECCIÓN
             st.markdown("### 🛠️ Herramientas de Limpieza Automática")
             
             col_chk1, col_chk2 = st.columns(2)
@@ -248,7 +224,6 @@ if archivo_subido is not None:
             # DIAGNÓSTICO EN TIEMPO REAL
             st.markdown("### 📊 Diagnóstico de Estado")
             
-            # Metric cards
             col_m1, col_m2, col_m3 = st.columns(3)
             col_m1.metric("Total Registros", f"{len(df):,}")
 
@@ -266,8 +241,10 @@ if archivo_subido is not None:
 
             # Evaluador de Teléfonos
             cant_tel_inv = 0
+            invalidos_df = pd.DataFrame()
+            patron_regex = motor_actual.get("regla_telefono", r"^\+")
+            
             if col_tel_real:
-                patron_regex = motor_actual.get("regla_telefono", r"^\+")
                 telefonos_str = df[col_tel_real].astype(str).str.strip()
                 invalidos_mask = ~telefonos_str.str.contains(patron_regex, regex=True, na=False)
                 invalidos_df = df[invalidos_mask].copy()
@@ -275,17 +252,42 @@ if archivo_subido is not None:
                 
             col_m3.metric("Teléfonos con Error", cant_tel_inv)
 
-            # Tablas y Alertas
+            # --- FUNCIONES PARA RESALTAR CELDAS EN ROJO ---
+            def resaltar_errores_preview(row):
+                styles = [''] * len(row)
+                # Resaltar Nombre si empieza con la Matrícula
+                if col_mat_real and col_nom_real:
+                    mat = str(row[col_mat_real]).strip()
+                    nom = str(row[col_nom_real]).strip()
+                    if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) and nom.startswith(mat):
+                        idx_nom = row.index.get_loc(col_nom_real)
+                        styles[idx_nom] = 'background-color: #ffcdd2; color: #b71c1c; font-weight: bold;'
+                
+                # Resaltar Teléfono si no cumple regex
+                if col_tel_real:
+                    tel = str(row[col_tel_real]).strip()
+                    if not pd.isna(row[col_tel_real]) and not pd.Series([tel]).str.contains(patron_regex, regex=True)[0]:
+                        idx_tel = row.index.get_loc(col_tel_real)
+                        styles[idx_tel] = 'background-color: #ffcdd2; color: #b71c1c; font-weight: bold;'
+                
+                return styles
+
+            # Desplegable de errores estilizado
             if cant_tel_inv > 0:
-                st.warning(f"📌 **Teléfonos pendientes:** Se encontraron **{cant_tel_inv} registros** sin el símbolo `+` inicial.")
+                st.warning(f"📌 **Teléfonos pendientes:** Se encontraron **{cant_tel_inv} registros** sin el símbolo `+` inicial o con formato incorrecto.")
                 with st.expander(f"👁️ Ver tabla de registros pendientes ({cant_tel_inv})"):
-                    st.dataframe(invalidos_df, use_container_width=True)
+                    df_err_styled = invalidos_df.style.applymap(
+                        lambda val: 'background-color: #ffcdd2; color: #b71c1c; font-weight: bold;',
+                        subset=[col_tel_real]
+                    )
+                    st.dataframe(df_err_styled, use_container_width=True)
             else:
                 st.success("✅ **Teléfonos:** Registros con formato internacional correcto.")
 
-            # VISTA PREVIA DE DATOS PROCESADOS
+            # VISTA PREVIA DE DATOS PROCESADOS CON RESALTADO EN ROJO
             st.subheader("📋 Vista Previa de Datos Procesados (Primeros 10 registros)")
-            st.dataframe(df.head(10), use_container_width=True)
+            df_preview_styled = df.head(10).style.apply(resaltar_errores_preview, axis=1)
+            st.dataframe(df_preview_styled, use_container_width=True)
 
             # Editor manual opcional
             with st.expander("✏️ Edición Manual de Emergencia"):
