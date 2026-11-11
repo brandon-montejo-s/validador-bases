@@ -1,6 +1,6 @@
 import os
 import json
-import re
+import io
 import pandas as pd
 import streamlit as st
 
@@ -11,15 +11,20 @@ st.set_page_config(
     layout="wide"
 )
 
-# Cargar la configuración leyendo el JSON desde la misma carpeta donde está app.py
+# Cargar la configuración leyendo el JSON desde la misma carpeta
 @st.cache_data(ttl=60)
 def cargar_configuracion():
-    # os.path.dirname(__file__) resuelve la ruta relativa en cualquier servidor/nube
     ruta_base = os.path.dirname(__file__)
     ruta_json = os.path.join(ruta_base, "motores_config.json")
-    
     with open(ruta_json, "r", encoding="utf-8") as f:
         return json.load(f)
+
+# Función para convertir DataFrame a Excel descargable
+def df_a_excel(df):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Datos')
+    return output.getvalue()
 
 # Función para cargar CSV o Excel de forma segura
 def cargar_archivo(uploaded_file):
@@ -40,7 +45,7 @@ def cargar_archivo(uploaded_file):
         st.error(f"Error al leer el archivo: {e}")
         return None
 
-# Cargar lista de motores
+# Cargar configuración de motores
 try:
     config_motores = cargar_configuracion()
 except Exception as e:
@@ -48,32 +53,28 @@ except Exception as e:
     st.stop()
 
 # Interfaz Principal
-st.title("🔍 Validador de Archivos por Motor")
-st.markdown("Selecciona el motor correspondiente y sube el archivo a validar.")
+st.title("🔍 Validador y Limpiador de Archivos por Motor")
+st.markdown("Selecciona el motor correspondiente, sube tu archivo y corrige automáticamente o descarga tus datos procesados.")
 
-# Crear lista desplegable de motores
+# Lista desplegable de motores
 opciones_motores = [f"{m['motor']} ({m['formato_importacion']})" for m in config_motores]
 seleccion = st.selectbox("Selecciona el Motor / Formato:", opciones_motores)
 
-# Obtener los datos del motor seleccionado
+# Datos del motor seleccionado
 indice_seleccionado = opciones_motores.index(seleccion)
 motor_actual = config_motores[indice_seleccionado]
 
-# Mensaje corregido con "Formato de importación"
+# Etiqueta corregida
 st.info(f"**Formato de importación:** {motor_actual['formato_importacion']}")
 
 # Subida de archivo
-archivo_subido = st.file_uploader(
-    "Sube tu archivo (CSV o Excel):", 
-    type=["csv", "xlsx", "xls"]
-)
+archivo_subido = st.file_uploader("Sube tu archivo (CSV o Excel):", type=["csv", "xlsx", "xls"])
 
 if archivo_subido is not None:
     df = cargar_archivo(archivo_subido)
     
     if df is not None:
         st.subheader("📋 Vista previa de los datos")
-        st.dataframe(df.head(10))
         
         # Validar Columnas (case-insensitive)
         cols_requeridas = motor_actual["columnas_requeridas"]
@@ -89,30 +90,85 @@ if archivo_subido is not None:
             else:
                 cols_faltantes.append(col)
                 
-        # Validación de Columnas Requeridas
         if cols_faltantes:
             st.error(f"❌ **Faltan {len(cols_faltantes)} columnas requeridas:** {', '.join(cols_faltantes)}")
         else:
             st.success("✅ **Estructura correcta:** Todas las columnas requeridas están presentes.")
             
-            # Validación de Teléfonos (si está configurada la regla)
+            # Validación y corrección de Teléfonos
             if "columna_telefono" in motor_actual and "regla_telefono" in motor_actual:
-                nombre_col_tel_req = motor_actual["columna_telefono"]
+                nombre_col_req = motor_actual["columna_telefono"]
                 
-                if nombre_col_tel_req in mapa_columnas:
-                    col_tel_real = mapa_columnas[nombre_col_tel_req]
+                if nombre_col_req in mapa_columnas:
+                    col_tel_real = mapa_columnas[nombre_col_req]
                     patron_regex = motor_actual["regla_telefono"]
                     
-                    # Convertir a texto y evaluar regex
-                    serie_telefonos = df[col_tel_real].astype(str).str.strip()
-                    masca_validos = serie_telefonos.str.contains(patron_regex, regex=True, na=False)
+                    # Evaluar registros
+                    serie_tel = df[col_tel_real].astype(str).str.strip()
+                    mascara_validos = serie_tel.str.contains(patron_regex, regex=True, na=False)
                     
-                    invalidos_df = df[~masca_validos]
+                    invalidos_df = df[~mascara_validos].copy()
                     cant_invalidos = len(invalidos_df)
                     
+                    # Métricas en pantalla
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("Total de Registros", len(df))
+                    col2.metric("Teléfonos Válidos", len(df) - cant_invalidos)
+                    col3.metric("Teléfonos con Formato Incorrecto", cant_invalidos)
+                    
                     if cant_invalidos > 0:
-                        st.warning(f"⚠️ Se encontraron **{cant_invalidos} registros** con formato de teléfono incorrecto en la columna `{col_tel_real}`.")
-                        with st.expander("Ver filas con teléfonos inválidos"):
+                        st.warning(f"⚠️ Se encontraron **{cant_invalidos} registros** sin el formato telefónico requerido en la columna `{col_tel_real}`.")
+                        
+                        # --- SECCIÓN DE AUTO-CORRECCIÓN INTERNACIONAL ---
+                        st.markdown("### 🛠️ Herramientas de Corrección Rápida")
+                        
+                        col_prefijo, col_btn = st.columns([2, 2])
+                        with col_prefijo:
+                            prefijo = st.text_input("Prefijo o símbolo a agregar al inicio:", value="+")
+                        
+                        with col_btn:
+                            st.write("") # Espaciador visual
+                            if st.button("🪄 Agregar prefijo a números inválidos"):
+                                def corregir_numero(val):
+                                    val_str = str(val).strip()
+                                    if not val_str.startswith('+'):
+                                        num_limpio = "".join(filter(str.isdigit, val_str))
+                                        if num_limpio:
+                                            return f"{prefijo}{num_limpio}"
+                                    return val_str
+                                
+                                df[col_tel_real] = df[col_tel_real].apply(corregir_numero)
+                                st.success("✅ ¡Formato corregido exitosamente!")
+                                st.rerun()
+
+                        # Pestañas para ver o editar datos
+                        tab1, tab2 = st.tabs(["👁️ Ver Filas con Error", "✏️ Editar Manualmente"])
+                        
+                        with tab1:
                             st.dataframe(invalidos_df)
+                            # Descargar solo errores
+                            bytes_err = df_a_excel(invalidos_df)
+                            st.download_button(
+                                label="📥 Descargar Reporte de Errores (Excel)",
+                                data=bytes_err,
+                                file_name="reporte_errores.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            )
+                        
+                        with tab2:
+                            st.info("Puedes modificar cualquier celda directamente en esta tabla antes de descargar:")
+                            df = st.data_editor(df, num_rows="dynamic")
                     else:
                         st.success(f"✅ Todos los números telefónicos en la columna `{col_tel_real}` cumplen con el formato.")
+                        st.dataframe(df.head(10))
+
+            # --- BOTÓN PARA DESCARGAR ARCHIVO FINAL LIMPIO ---
+            st.divider()
+            st.markdown("### 💾 Descargar Archivo Procesado")
+            excel_limpio = df_a_excel(df)
+            st.download_button(
+                label="🚀 Descargar Archivo Completo (Excel)",
+                data=excel_limpio,
+                file_name=f"archivo_procesado_{motor_actual['motor']}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
