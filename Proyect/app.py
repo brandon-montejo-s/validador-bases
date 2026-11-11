@@ -68,13 +68,12 @@ def df_a_excel(df):
         df.to_excel(writer, index=False, sheet_name='Datos')
     return output.getvalue()
 
-# Función para cargar CSV o Excel de forma segura (con autodetección de delimitador , o ;)
+# Función para cargar CSV o Excel de forma segura (autodetección de delimitador , o ;)
 def cargar_archivo(uploaded_file):
     nombre = uploaded_file.name
     try:
         if nombre.endswith('.csv'):
             try:
-                # Intentar autodetección del delimitador (coma o punto y coma)
                 df = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='utf-8')
             except Exception:
                 uploaded_file.seek(0)
@@ -138,19 +137,34 @@ if archivo_subido is not None:
     if df_raw is not None:
         df = df_raw.copy()
         
-        # Validar Columnas (case-insensitive)
+        # Limpiar espacios en blanco invisibles al inicio y final de los nombres de columna del archivo
+        df.columns = [str(col).strip() for col in df.columns]
+        
+        # Mapeo flexible de columnas (case-insensitive y sin espacios)
         cols_requeridas = motor_actual["columnas_requeridas"]
-        cols_archivo_lower = {str(c).strip().lower(): str(c) for c in df.columns}
+        cols_archivo_lower = {str(c).lower(): str(c) for c in df.columns}
         
         cols_faltantes = []
         mapa_columnas = {}
         
-        for col in cols_requeridas:
-            col_lower = col.strip().lower()
-            if col_lower in cols_archivo_lower:
-                mapa_columnas[col] = cols_archivo_lower[col_lower]
+        for col_req in cols_requeridas:
+            col_req_lower = col_req.strip().lower()
+            encontrada = False
+            
+            # 1. Coincidencia exacta limpia
+            if col_req_lower in cols_archivo_lower:
+                mapa_columnas[col_req] = cols_archivo_lower[col_req_lower]
+                encontrada = True
             else:
-                cols_faltantes.append(col)
+                # 2. Coincidencia por subcadena/prefijo en caso de que venga recortada la columna
+                for col_real_lower, col_real_original in cols_archivo_lower.items():
+                    if (col_real_lower.startswith(col_req_lower[:6]) or col_req_lower.startswith(col_real_lower[:6])) and len(col_real_lower) >= 4:
+                        mapa_columnas[col_req] = col_real_original
+                        encontrada = True
+                        break
+            
+            if not encontrada:
+                cols_faltantes.append(col_req)
                 
         if cols_faltantes:
             st.error(f"❌ **Faltan {len(cols_faltantes)} columnas requeridas:** {', '.join(cols_faltantes)}")
@@ -159,11 +173,7 @@ if archivo_subido is not None:
             
             # Ubicar columnas clave
             col_mat_real = mapa_columnas.get("Matricula")
-            
-            # Soporte flexible para nombre de columna de Nombre (NombreApellido o name)
             col_nom_real = mapa_columnas.get("NombreApellido") or mapa_columnas.get("name")
-            
-            # Soporte flexible para nombre de columna de Teléfono
             col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
 
             # ANÁLISIS PREVIO DE ANOMALÍAS
@@ -293,7 +303,6 @@ if archivo_subido is not None:
             st.divider()
             st.markdown("### 💾 Exportar Archivo Final")
             
-            # Habilitar descarga si no hay errores O si se activa cualquiera de los checkboxes de corrección
             permitir_descarga = (cant_tel_inv == 0) or chk_agregar_mas or chk_limpiar_nombre
             
             if not permitir_descarga:
