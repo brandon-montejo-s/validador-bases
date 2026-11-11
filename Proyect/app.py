@@ -295,7 +295,8 @@ if archivo_subido is not None:
             st.divider()
             st.markdown("### 💾 Exportar Archivo Final")
             
-            permitir_descarga = (cant_tel_inv == 0)
+            # Se permite la descarga si no hay errores O si la casilla de corrección ya fue activada
+            permitir_descarga = (cant_tel_inv == 0) or chk_agregar_mas
             
             if not permitir_descarga:
                 st.info("💡 **Aviso:** Activa la casilla de limpieza telefónica arriba para habilitar la descarga.")
