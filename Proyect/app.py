@@ -14,12 +14,9 @@ st.set_page_config(
 # 2. ESTILOS CSS PERSONALIZADOS (UI PRO)
 st.markdown("""
 <style>
-    /* Estilo general del fondo y tipografía */
     .main {
         background-color: #f8f9fa;
     }
-    
-    /* Encabezado principal personalizado */
     .header-box {
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         padding: 24px;
@@ -39,18 +36,6 @@ st.markdown("""
         color: #e0e6ed;
         margin-top: 5px;
     }
-
-    /* Tarjetas de Diagnóstico y Métricas */
-    .card-box {
-        background-color: #ffffff;
-        padding: 18px;
-        border-radius: 10px;
-        border-left: 5px solid #2a5298;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-    }
-    
-    /* Personalización de la Sidebar */
     [data-testid="stSidebar"] {
         background-color: #111827;
         color: #ffffff;
@@ -58,20 +43,11 @@ st.markdown("""
     [data-testid="stSidebar"] * {
         color: #e5e7eb !important;
     }
-    
-    /* Botones estilizados */
-    .stButton>button {
+    .stButton>button, .stDownloadButton>button {
         border-radius: 8px;
         font-weight: 600;
         transition: all 0.3s ease;
     }
-    .stDownloadButton>button {
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    /* Ocultar menú nativo innecesario */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
@@ -185,24 +161,28 @@ if archivo_subido is not None:
             col_nom_real = mapa_columnas.get("NombreApellido")
             col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
 
-            # ANÁLISIS PREVIO DE ANOMALÍAS
+            # ANÁLISIS PREVIO DE ANOMALÍAS (CONVERSIÓN ROBUSTA A CADENA)
             tiene_dup_nom_inicial = False
             if col_mat_real and col_nom_real:
-                dup_mask_init = df.apply(
-                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).strip()) 
-                    if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
-                    axis=1
-                )
-                tiene_dup_nom_inicial = dup_mask_init.sum() > 0
+                def es_duplicado(row):
+                    if pd.isna(row[col_mat_real]) or pd.isna(row[col_nom_real]):
+                        return False
+                    # Convertir a String y quitar espacios
+                    mat_str = str(row[col_mat_real]).split('.')[0].strip()
+                    nom_str = str(row[col_nom_real]).strip()
+                    return nom_str.startswith(mat_str) and len(mat_str) > 0
+                
+                dup_mask_init = df.apply(es_duplicado, axis=1)
+                tiene_dup_nom_inicial = bool(dup_mask_init.sum() > 0)
 
             tiene_tel_inv_inicial = False
             if col_tel_real:
                 patron_regex = motor_actual.get("regla_telefono", r"^\+")
                 telefonos_init = df[col_tel_real].astype(str).str.strip()
                 inv_mask_init = ~telefonos_init.str.contains(patron_regex, regex=True, na=False)
-                tiene_tel_inv_inicial = inv_mask_init.sum() > 0
+                tiene_tel_inv_inicial = bool(inv_mask_init.sum() > 0)
 
-            # HERRAMIENTAS DE CORRECCIÓN (PANEL ESTILIZADO)
+            # HERRAMIENTAS DE CORRECCIÓN
             st.markdown("### 🛠️ Herramientas de Limpieza Automática")
             
             col_chk1, col_chk2 = st.columns(2)
@@ -212,7 +192,7 @@ if archivo_subido is not None:
                     "✂️ Eliminar matrícula del campo NombreApellido", 
                     value=False,
                     disabled=not tiene_dup_nom_inicial,
-                    help="Se deshabilita automáticamente si no se detecta la matrícula duplicada en el nombre."
+                    help="Se habilita automáticamente si se detectan matrículas al inicio del nombre."
                 )
                 
             with col_chk2:
@@ -220,13 +200,15 @@ if archivo_subido is not None:
                     "🪄 Agregar símbolo (+) a teléfonos sin formato", 
                     value=False,
                     disabled=not tiene_tel_inv_inicial,
-                    help="Se deshabilita automáticamente si todos los teléfonos cumplen con el formato."
+                    help="Se habilita automáticamente si hay teléfonos sin el prefijo +."
                 )
 
             # APLICACIÓN DE CORRECCIONES
             if chk_limpiar_nombre and col_mat_real and col_nom_real:
                 def remover_matricula(row):
-                    mat = str(row[col_mat_real]).strip()
+                    if pd.isna(row[col_mat_real]) or pd.isna(row[col_nom_real]):
+                        return row[col_nom_real]
+                    mat = str(row[col_mat_real]).split('.')[0].strip()
                     nom = str(row[col_nom_real]).strip()
                     if nom.startswith(mat):
                         return nom[len(mat):].strip()
@@ -248,15 +230,14 @@ if archivo_subido is not None:
             # DIAGNÓSTICO EN TIEMPO REAL
             st.markdown("### 📊 Diagnóstico de Estado")
             
-            # Metric cards
             col_m1, col_m2, col_m3 = st.columns(3)
             col_m1.metric("Total Registros", f"{len(df):,}")
 
-            # Evaluador de Matrícula en Nombre
+            # Evaluador de Matrícula en Nombre tras corrección
             cant_dup_nom = 0
             if col_mat_real and col_nom_real:
                 duplicados_mask = df.apply(
-                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).strip()) 
+                    lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).split('.')[0].strip()) 
                     if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
                     axis=1
                 )
@@ -264,7 +245,7 @@ if archivo_subido is not None:
             
             col_m2.metric("Matrículas Duplicadas", cant_dup_nom)
 
-            # Evaluador de Teléfonos
+            # Evaluador de Teléfonos tras corrección
             cant_tel_inv = 0
             if col_tel_real:
                 patron_regex = motor_actual.get("regla_telefono", r"^\+")
@@ -291,15 +272,15 @@ if archivo_subido is not None:
             with st.expander("✏️ Edición Manual de Emergencia"):
                 df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
 
-            # BOTONES DE DESCARGA
+            # BOTONES DE DESCARGA CONDICIONALES
             st.divider()
             st.markdown("### 💾 Exportar Archivo Final")
             
-            # Se permite la descarga si no hay errores O si la casilla de corrección ya fue activada
-            permitir_descarga = (cant_tel_inv == 0) or chk_agregar_mas
+            # Se permite la descarga si no hay errores O si CUALQUIERA de los dos checkboxes está activado
+            permitir_descarga = (cant_tel_inv == 0) or chk_agregar_mas or chk_limpiar_nombre
             
             if not permitir_descarga:
-                st.info("💡 **Aviso:** Activa la casilla de limpieza telefónica arriba para habilitar la descarga.")
+                st.info("💡 **Aviso:** Activa alguna de las casillas de limpieza arriba para habilitar la descarga.")
 
             col_down1, col_down2 = st.columns(2)
             mime_excel = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
