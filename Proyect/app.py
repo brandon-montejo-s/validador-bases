@@ -161,13 +161,12 @@ if archivo_subido is not None:
             col_nom_real = mapa_columnas.get("NombreApellido")
             col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
 
-            # ANÁLISIS PREVIO DE ANOMALÍAS (CONVERSIÓN ROBUSTA A CADENA)
+            # ANÁLISIS PREVIO DE ANOMALÍAS
             tiene_dup_nom_inicial = False
             if col_mat_real and col_nom_real:
                 def es_duplicado(row):
                     if pd.isna(row[col_mat_real]) or pd.isna(row[col_nom_real]):
                         return False
-                    # Convertir a String y quitar espacios
                     mat_str = str(row[col_mat_real]).split('.')[0].strip()
                     nom_str = str(row[col_nom_real]).strip()
                     return nom_str.startswith(mat_str) and len(mat_str) > 0
@@ -235,18 +234,21 @@ if archivo_subido is not None:
 
             # Evaluador de Matrícula en Nombre tras corrección
             cant_dup_nom = 0
+            dup_df = pd.DataFrame()
             if col_mat_real and col_nom_real:
                 duplicados_mask = df.apply(
                     lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).split('.')[0].strip()) 
                     if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
                     axis=1
                 )
-                cant_dup_nom = duplicados_mask.sum()
+                dup_df = df[duplicados_mask].copy()
+                cant_dup_nom = len(dup_df)
             
             col_m2.metric("Matrículas Duplicadas", cant_dup_nom)
 
             # Evaluador de Teléfonos tras corrección
             cant_tel_inv = 0
+            invalidos_df = pd.DataFrame()
             if col_tel_real:
                 patron_regex = motor_actual.get("regla_telefono", r"^\+")
                 telefonos_str = df[col_tel_real].astype(str).str.strip()
@@ -256,10 +258,20 @@ if archivo_subido is not None:
                 
             col_m3.metric("Teléfonos con Error", cant_tel_inv)
 
-            # Tablas y Alertas
+            # TABLAS Y ALERTAS DE DIAGNÓSTICO
+            
+            # 1. Alerta y tabla desplegable de Matrículas Duplicadas
+            if cant_dup_nom > 0:
+                st.warning(f"📌 **Matrículas duplicadas en Nombre:** Se encontraron **{cant_dup_nom} registros** donde el nombre inicia con la matrícula.")
+                with st.expander(f"👁️ Ver tabla de registros con matrícula duplicada ({cant_dup_nom})"):
+                    st.dataframe(dup_df, use_container_width=True)
+            else:
+                st.success("✅ **NombreApellido:** Sin matrículas duplicadas en el campo de nombre.")
+
+            # 2. Alerta y tabla desplegable de Teléfonos Pendientes
             if cant_tel_inv > 0:
                 st.warning(f"📌 **Teléfonos pendientes:** Se encontraron **{cant_tel_inv} registros** sin el símbolo `+` inicial.")
-                with st.expander(f"👁️ Ver tabla de registros pendientes ({cant_tel_inv})"):
+                with st.expander(f"👁️ Ver tabla de registros con teléfono erróneo ({cant_tel_inv})"):
                     st.dataframe(invalidos_df, use_container_width=True)
             else:
                 st.success("✅ **Teléfonos:** Registros con formato internacional correcto.")
@@ -276,7 +288,7 @@ if archivo_subido is not None:
             st.divider()
             st.markdown("### 💾 Exportar Archivo Final")
             
-            # Se permite la descarga si no hay errores O si CUALQUIERA de los dos checkboxes está activado
+            # Habilitar descarga si no hay errores O si se activa cualquiera de los checkboxes de corrección
             permitir_descarga = (cant_tel_inv == 0) or chk_agregar_mas or chk_limpiar_nombre
             
             if not permitir_descarga:
