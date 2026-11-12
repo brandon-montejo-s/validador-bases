@@ -262,30 +262,4 @@ if archivo_subido is not None:
                 st.info("💡 Aviso: Activa alguna casilla de limpieza arriba para habilitar la descarga.")
 
             col_down1, col_down2 = st.columns(2)
-            mime_excel = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-            with col_down1:
-                excel_limpio = df_a_excel(df)
-                st.download_button(
-                    label="🚀 Descargar Excel (.xlsx)",
-                    data=excel_limpio,
-                    file_name=f"archivo_procesado_{motor_actual['motor']}.xlsx",
-                    mime=mime_excel,
-                    use_container_width=True,
-                    disabled=not permitir_descarga
-                )
-                
-            with col_down2:
-                csv_limpio = df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📄 Descargar CSV (.csv)",
-                    data=csv_limpio,
-                    file_name=f"archivo_procesado_{motor_actual['motor']}.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                    disabled=not permitir_descarga
-                )
-
-# Pie de página
-st.divider()
-st.caption("⚡ Plataforma desarrollada por: Brandon Montejo Sánchez")
+            mime_excel = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
