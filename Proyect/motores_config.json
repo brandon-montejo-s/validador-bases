@@ -92,11 +92,10 @@
   {
     "motor": "M1",
     "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "Contact",
+    "columna_telefono": "ContactAddress",
     "columnas_requeridas": [
       "name",
-      "Contact",
-      "Address",
+      "ContactAddress",
       "Email",
       "Campus",
       "Matricula",
@@ -115,11 +114,10 @@
   {
     "motor": "M2",
     "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "Contact",
+    "columna_telefono": "ContactAddress",
     "columnas_requeridas": [
       "name",
-      "Contact",
-      "Address",
+      "ContactAddress",
       "Email",
       "Campus",
       "Matricula",
@@ -138,11 +136,10 @@
   {
     "motor": "M3",
     "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "Contact",
+    "columna_telefono": "ContactAddress",
     "columnas_requeridas": [
       "name",
-      "Contact",
-      "Address",
+      "ContactAddress",
       "Email",
       "Campus",
       "Matricula",
@@ -161,11 +158,10 @@
   {
     "motor": "M4",
     "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "Contact",
+    "columna_telefono": "ContactAddress",
     "columnas_requeridas": [
       "name",
-      "Contact",
-      "Address",
+      "ContactAddress",
       "Email",
       "Campus",
       "Matricula",
@@ -184,11 +180,10 @@
   {
     "motor": "M5",
     "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "Contact",
+    "columna_telefono": "ContactAddress",
     "columnas_requeridas": [
       "name",
-      "Contact",
-      "Address",
+      "ContactAddress",
       "Email",
       "Campus",
       "Matricula",
@@ -207,11 +202,10 @@
   {
     "motor": "M6",
     "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "Contact",
+    "columna_telefono": "ContactAddress",
     "columnas_requeridas": [
       "name",
-      "Contact",
-      "Address",
+      "ContactAddress",
       "Email",
       "Campus",
       "Matricula",
@@ -230,11 +224,10 @@
   {
     "motor": "M7",
     "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "Contact",
+    "columna_telefono": "ContactAddress",
     "columnas_requeridas": [
       "name",
-      "Contact",
-      "Address",
+      "ContactAddress",
       "Email",
       "Campus",
       "Matricula",
@@ -253,11 +246,10 @@
   {
     "motor": "M1_M6",
     "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "Contact",
+    "columna_telefono": "ContactAddress",
     "columnas_requeridas": [
       "name",
-      "Contact",
-      "Address",
+      "ContactAddress",
       "Email",
       "Campus",
       "Matricula",
