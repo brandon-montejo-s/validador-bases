@@ -60,13 +60,6 @@ except Exception as e:
     st.error(f"Error al cargar la configuración: {e}")
     st.stop()
 
-# --- BARRA LATERAL (SIDEBAR) ---
-st.sidebar.title("⚙️ Administración")
-st.sidebar.write("Consulta las reglas activas de los motores cargados.")
-
-with st.sidebar.expander("📄 Ver Configuración JSON Completa"):
-    st.json(config_motores)
-
 # ENCABEZADO
 st.title("⚡ Validador & Limpiador de Archivos")
 st.caption("Selecciona el motor objetivo, sube tu base de datos y automatiza la limpieza en segundos.")
@@ -79,8 +72,7 @@ seleccion = st.selectbox("🎯 Selecciona el Motor / Formato:", opciones_motores
 indice_seleccionado = opciones_motores.index(seleccion)
 motor_actual = config_motores[indice_seleccionado]
 
-# Resumen en Sidebar
-st.sidebar.divider()
+# Resumen en Sidebar (Solo lectura para operadores)
 st.sidebar.subheader(f"📌 Motor Activo: {motor_actual['motor']}")
 st.sidebar.write(f"**Formato:** `{motor_actual['formato_importacion']}`")
 st.sidebar.write("**Columnas requeridas:**")
@@ -99,11 +91,8 @@ if archivo_subido is not None:
         st.error("No se pudo leer la estructura del archivo. Verifica que no esté dañado o vacío.")
     else:
         df = df_raw.copy()
-        
-        # Limpiar espacios en encabezados
         df.columns = [str(col).strip() for col in df.columns]
         
-        # Mapeo de columnas requeridas
         cols_requeridas = motor_actual["columnas_requeridas"]
         cols_archivo_lower = {str(c).lower(): str(c) for c in df.columns}
         
@@ -132,18 +121,15 @@ if archivo_subido is not None:
         else:
             st.success("Estructura correcta: Todas las columnas requeridas están presentes.")
             
-            # Identificar columnas clave
             col_mat_real = mapa_columnas.get("Matricula")
             col_nom_real = mapa_columnas.get("NombreApellido") or mapa_columnas.get("name")
             col_tel_real = mapa_columnas.get(motor_actual.get("columna_telefono", ""))
 
-            # Inicializar variables de control
             cant_dup_nom = 0
             cant_tel_inv = 0
             dup_df = pd.DataFrame()
             invalidos_df = pd.DataFrame()
 
-            # Evaluación inicial para activar checkboxes
             tiene_dup_nom_inicial = False
             if col_mat_real and col_nom_real:
                 dup_mask_init = df.apply(
@@ -180,7 +166,6 @@ if archivo_subido is not None:
                     help="Se habilita si hay teléfonos sin prefijo +."
                 )
 
-            # Aplicar limpiezas si se activan las casillas
             if chk_limpiar_nombre and col_mat_real and col_nom_real:
                 def limpiar_nom(r):
                     if pd.isna(r[col_mat_real]) or pd.isna(r[col_nom_real]):
@@ -208,7 +193,6 @@ if archivo_subido is not None:
             col_m1, col_m2, col_m3 = st.columns(3)
             col_m1.metric("Total Registros", f"{len(df):,}")
 
-            # Detección de matrículas duplicadas en el nombre
             if col_mat_real and col_nom_real:
                 duplicados_mask = df.apply(
                     lambda row: str(row[col_nom_real]).strip().startswith(str(row[col_mat_real]).split('.')[0].strip()) if pd.notna(row[col_mat_real]) and pd.notna(row[col_nom_real]) else False, 
@@ -219,7 +203,6 @@ if archivo_subido is not None:
             
             col_m2.metric("Matrículas Duplicadas", cant_dup_nom)
 
-            # Detección de teléfonos inválidos
             if col_tel_real:
                 patron_regex = motor_actual.get("regla_telefono", r"^\+")
                 telefonos_str = df[col_tel_real].astype(str).str.strip()
@@ -229,7 +212,6 @@ if archivo_subido is not None:
                 
             col_m3.metric("Teléfonos con Error", cant_tel_inv)
 
-            # Banner y expansor para Matrículas Duplicadas
             if cant_dup_nom > 0:
                 st.warning(f"📌 Matrículas duplicadas en Nombre: Se encontraron {cant_dup_nom} registros donde el nombre inicia con la matrícula.")
                 with st.expander(f"👁️ Ver tabla de registros con matrícula duplicada ({cant_dup_nom})"):
@@ -237,7 +219,6 @@ if archivo_subido is not None:
             else:
                 st.success("✅ Nombre: Sin matrículas duplicadas en el campo de nombre.")
 
-            # Banner y expansor para Teléfonos Pendientes
             if cant_tel_inv > 0:
                 st.warning(f"📌 Teléfonos pendientes: Se encontraron {cant_tel_inv} registros sin el símbolo '+' inicial.")
                 with st.expander(f"👁️ Ver tabla de registros con teléfono erróneo ({cant_tel_inv})"):
@@ -245,7 +226,6 @@ if archivo_subido is not None:
             else:
                 st.success("✅ Teléfonos: Registros con formato internacional correcto.")
 
-            # Vista Previa y Edición
             st.subheader("📋 Vista Previa de Datos Procesados (Primeros 10 registros)")
             st.dataframe(df.head(10), use_container_width=True)
 
