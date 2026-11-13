@@ -62,7 +62,7 @@ except Exception as e:
 
 # ENCABEZADO
 st.title("⚡ Validador & Limpiador de Archivos")
-st.caption("Selecciona el motor objetivo, sube tu base de datos y automatiza la limpieza en segundos.")
+st.caption("")
 st.divider()
 
 # Selección de motor
