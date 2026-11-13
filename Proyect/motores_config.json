@@ -264,5 +264,18 @@
       "IdentificadorInterno"
     ],
     "regla_telefono": "^\\+"
+  },
+  {
+    "motor": "VoiceBlaster",
+    "formato_importacion": "Blaster_LATM",
+    "columna_telefono": "telefono",
+    "columnas_requeridas": [
+      "NombreApellido",
+      "Identificador",
+      "Correoelectronico",
+      "telefono",
+      "programa"
+    ],
+    "regla_telefono": "^\\+"
   }
 ]
