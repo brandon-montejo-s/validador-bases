@@ -65,7 +65,6 @@ if opcion == "Validar Layout de Archivo":
             st.error(f"Error al leer el archivo: {e}")
             st.stop()
 
-        # Limpiar nombres de columnas de espacios accidentales
         df.columns = [str(c).strip() for c in df.columns]
 
         st.subheader("Vista previa de los datos originales")
@@ -84,82 +83,116 @@ if opcion == "Validar Layout de Archivo":
         if columnas_faltantes:
             errores.append(f"❌ **Faltan las siguientes columnas obligatorias:** `{', '.join(columnas_faltantes)}`")
 
-        # 2. Identificar columna de teléfono y columna de matrícula (si existe)
+        # Identificar columnas clave dinámicamente
         col_tel_buscada = datos_motor.get("columna_telefono", "telefono").strip().lower()
         col_telefono_real = next((col for col in columnas_archivo if col.lower() == col_tel_buscada), None)
         col_matricula_real = next((col for col in columnas_archivo if "matricula" in col.lower()), None)
+        col_nombre_real = next(
+            (col for col in columnas_archivo if col.lower() in ["nombreapellido", "name", "nombre"]),
+            None,
+        )
 
-        df_telefonos_invalidos = pd.DataFrame()
+        # 2. Detectar teléfonos sin '+' o inválidos
+        mask_tel_invalido = pd.Series(False, index=df.index)
         if col_telefono_real:
             regex_tel = re.compile(datos_motor["regla_telefono"])
             serie_tel = df[col_telefono_real].fillna("").astype(str).str.strip()
-            mask_invalidos = ~serie_tel.str.match(regex_tel, na=False)
-            df_telefonos_invalidos = df[mask_invalidos]
+            mask_tel_invalido = ~serie_tel.str.match(regex_tel, na=False)
+            cant_tel_err = int(mask_tel_invalido.sum())
 
-            if not df_telefonos_invalidos.empty:
+            if cant_tel_err > 0:
                 errores.append(
-                    f"⚠️ **Se encontraron {len(df_telefonos_invalidos)} registros con teléfono inválido** "
-                    f"en la columna `{col_telefono_real}` (deben empezar con '+' seguido de dígitos)."
+                    f"⚠️ **Se encontraron {cant_tel_err} registros sin signo '+' o con teléfono inválido** "
+                    f"en la columna `{col_telefono_real}`."
                 )
         else:
             errores.append(f"❌ **No se encontró la columna de teléfono esperada:** `{datos_motor.get('columna_telefono')}`")
 
-        # 3. Detectar duplicados
-        col_clave_dup = col_matricula_real if col_matricula_real else col_telefono_real
-        total_duplicados = 0
-        if col_clave_dup:
-            total_duplicados = int(df.duplicated(subset=[col_clave_dup]).sum())
-            if total_duplicados > 0:
+        # 3. Detectar matrícula duplicada pegada en NombreApellido
+        mask_mat_en_nombre = pd.Series(False, index=df.index)
+        if col_matricula_real and col_nombre_real:
+            def tiene_matricula_pegada(row):
+                mat = str(row[col_matricula_real]).strip() if pd.notna(row[col_matricula_real]) else ""
+                nom = str(row[col_nombre_real]).strip() if pd.notna(row[col_nombre_real]) else ""
+                if mat and mat.lower() != "nan" and nom.startswith(mat):
+                    return True
+                return False
+
+            mask_mat_en_nombre = df.apply(tiene_matricula_pegada, axis=1)
+            cant_mat_nombre = int(mask_mat_en_nombre.sum())
+
+            if cant_mat_nombre > 0:
                 errores.append(
-                    f"⚠️ **Se detectaron {total_duplicados} registros duplicados** tomando como referencia `{col_clave_dup}`."
+                    f"⚠️ **Se detectaron {cant_mat_nombre} registros con la matrícula duplicada dentro de `{col_nombre_real}`** "
+                    f"(ej. `{df.loc[mask_mat_en_nombre, col_nombre_real].iloc[0]}`)."
                 )
 
-        # Despliegue de diagnósticos
+        # ======================================================================
+        # TABLA DE VISTA PREVIA DE REGISTROS CON ERRORES
+        # ======================================================================
         st.divider()
+        mask_cualquier_error = mask_tel_invalido | mask_mat_en_nombre
+
         if errores:
-            st.error("### El archivo contiene observaciones:")
+            st.error("### Observaciones detectadas en el archivo:")
             for err in errores:
                 st.markdown(err)
 
-            if not df_telefonos_invalidos.empty and col_telefono_real:
-                with st.expander("🔍 Ver detalle de registros con teléfonos incorrectos", expanded=False):
-                    st.dataframe(
-                        df_telefonos_invalidos[[col_telefono_real] + [c for c in df.columns if c != col_telefono_real]],
-                        use_container_width=True,
-                    )
+            if mask_cualquier_error.any():
+                df_errores_preview = df[mask_cualquier_error].copy()
+                motivos = []
+                for idx in df_errores_preview.index:
+                    m_fila = []
+                    if mask_mat_en_nombre.loc[idx]:
+                        m_fila.append("Matrícula pegada en Nombre")
+                    if mask_tel_invalido.loc[idx]:
+                        m_fila.append("Teléfono sin '+' o inválido")
+                    motivos.append(" | ".join(m_fila))
+
+                df_errores_preview.insert(0, "⚠️ Motivo_Error", motivos)
+
+                with st.expander(
+                    f"🔍 Vista previa de registros con errores ({len(df_errores_preview)} filas detectadas)",
+                    expanded=True,
+                ):
+                    st.dataframe(df_errores_preview, use_container_width=True)
         else:
-            st.success("✅ **¡El archivo cumple con el layout y las validaciones correctamente!**")
+            st.success("✅ **¡El archivo cumple con el layout y no tiene errores en nombres ni teléfonos!**")
 
         # ======================================================================
-        # HERRAMIENTAS DE LIMPIEZA Y DESCARGA DE BASE
+        # HERRAMIENTAS DE LIMPIEZA CONDICIONAL Y DESCARGA
         # ======================================================================
         st.divider()
         st.subheader("🧹 Limpieza Automática y Descarga de Base")
 
+        hay_error_tel = bool(mask_tel_invalido.any())
+        hay_error_mat_nombre = bool(mask_mat_en_nombre.any())
+
         col_chk1, col_chk2 = st.columns(2)
         with col_chk1:
             agregar_mas = st.checkbox(
-                "➕ Agregar signo '+' automáticamente a los teléfonos que no lo tengan",
-                value=True,
+                f"➕ Agregar signo '+' a teléfonos ({int(mask_tel_invalido.sum())} detectados)",
+                value=hay_error_tel,
+                disabled=not hay_error_tel,
             )
         with col_chk2:
-            quitar_duplicados = st.checkbox(
-                f"🗑️ Eliminar registros duplicados ({total_duplicados} detectados)"
-                if col_clave_dup else "🗑️ Eliminar filas completamente duplicadas",
-                value=False,
+            limpiar_matricula_nombre = st.checkbox(
+                f"✂️ Quitar matrícula duplicada de `{col_nombre_real}` ({int(mask_mat_en_nombre.sum())} detectados)"
+                if col_nombre_real else "✂️ Quitar matrícula duplicada en Nombre",
+                value=hay_error_mat_nombre,
+                disabled=not hay_error_mat_nombre,
             )
 
         df_procesado = df.copy()
 
-        # Aplicar corrección de '+' en teléfonos
-        if agregar_mas and col_telefono_real:
+        # Aplicar corrección de '+' si está activo
+        if agregar_mas and hay_error_tel and col_telefono_real:
             def normalizar_telefono(val):
                 if pd.isna(val):
                     return val
                 texto = str(val).strip()
                 if texto == "" or texto.lower() == "nan":
                     return ""
-                # Quitar espacios o guiones internos
                 texto_limpio = re.sub(r"[\s\-()]", "", texto)
                 if not texto_limpio.startswith("+") and texto_limpio.isdigit():
                     return f"+{texto_limpio}"
@@ -167,20 +200,27 @@ if opcion == "Validar Layout de Archivo":
 
             df_procesado[col_telefono_real] = df_procesado[col_telefono_real].apply(normalizar_telefono)
 
-        # Aplicar eliminación de duplicados
-        if quitar_duplicados:
-            if col_clave_dup:
-                df_procesado = df_procesado.drop_duplicates(subset=[col_clave_dup], keep="first")
-            else:
-                df_procesado = df_procesado.drop_duplicates(keep="first")
+        # Aplicar limpieza de matrícula en nombre si está activo
+        if limpiar_matricula_nombre and hay_error_mat_nombre and col_matricula_real and col_nombre_real:
+            def remover_prefijo_matricula(row):
+                mat = str(row[col_matricula_real]).strip() if pd.notna(row[col_matricula_real]) else ""
+                nom = str(row[col_nombre_real]).strip() if pd.notna(row[col_nombre_real]) else ""
+                if mat and mat.lower() != "nan" and nom.startswith(mat):
+                    return nom[len(mat):].strip()
+                return nom
 
-        # Métricas resumen de la base lista para descargar
+            df_procesado[col_nombre_real] = df_procesado.apply(remover_prefijo_matricula, axis=1)
+
+        # Métricas resumen
+        corregidos_tel = int(mask_tel_invalido.sum()) if (agregar_mas and hay_error_tel) else 0
+        corregidos_nom = int(mask_mat_en_nombre.sum()) if (limpiar_matricula_nombre and hay_error_mat_nombre) else 0
+
         m1, m2, m3 = st.columns(3)
-        m1.metric("Registros Originales", f"{len(df):,}")
-        m2.metric("Registros Finales Listos", f"{len(df_procesado):,}")
-        m3.metric("Registros Eliminados", f"{len(df) - len(df_procesado):,}")
+        m1.metric("Total de Registros", f"{len(df_procesado):,}")
+        m2.metric("Teléfonos Corregidos (+)", f"{corregidos_tel:,}")
+        m3.metric("Nombres Limpiados", f"{corregidos_nom:,}")
 
-        with st.expander("👀 Vista previa de la base procesada lista para descargar"):
+        with st.expander("👀 Vista previa de la base procesada lista para descargar", expanded=True):
             st.dataframe(df_procesado.head(10), use_container_width=True)
 
         # Preparar archivos para descarga
@@ -228,7 +268,6 @@ elif opcion == "📊 Dashboard de Control de Cargas":
             hoja = "BD_Cargas" if "BD_Cargas" in excel_file.sheet_names else excel_file.sheet_names[0]
             df_ctrl = pd.read_excel(archivo_control, sheet_name=hoja)
 
-            # Renombrar las primeras 3 columnas por posición (A, B, C)
             cols = list(df_ctrl.columns)
             if len(cols) >= 3:
                 cols[0] = "Periodo"
@@ -236,7 +275,6 @@ elif opcion == "📊 Dashboard de Control de Cargas":
                 cols[2] = "Dia_Semana"
             df_ctrl.columns = [str(c).strip() for c in cols]
 
-            # Limpiar separadores de miles y convertir a numérico
             cols_numericas = ["# registros a cargar", "# registros cargados", "# registros cancelados"]
             for col in cols_numericas:
                 if col in df_ctrl.columns:
@@ -248,11 +286,9 @@ elif opcion == "📊 Dashboard de Control de Cargas":
                     )
                     df_ctrl[col] = pd.to_numeric(df_ctrl[col], errors="coerce").fillna(0)
 
-            # Filtrar filas válidas
             if "# registros a cargar" in df_ctrl.columns:
                 df_ctrl = df_ctrl[df_ctrl["# registros a cargar"] > 0]
 
-            # Procesar fecha de activación
             if "Fecha de Activacion" in df_ctrl.columns:
                 df_ctrl["Fecha_Dt"] = pd.to_datetime(df_ctrl["Fecha de Activacion"], dayfirst=True, errors="coerce")
 
