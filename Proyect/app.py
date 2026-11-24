@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import re
@@ -29,10 +30,10 @@ opcion = st.sidebar.selectbox(
 )
 
 # ==============================================================================
-# OPCIÓN 1: VALIDADOR DE LAYOUT
+# OPCIÓN 1: VALIDADOR DE LAYOUT, LIMPIEZA Y DESCARGA
 # ==============================================================================
 if opcion == "Validar Layout de Archivo":
-    st.header("Validación Automática de Base de Datos")
+    st.header("Validación Automática y Limpieza de Base de Datos")
 
     nombres_motores = [m["motor"] for m in config_motores]
     motor_seleccionado = st.selectbox("Selecciona el motor de destino", nombres_motores)
@@ -54,23 +55,27 @@ if opcion == "Validar Layout de Archivo":
         try:
             if archivo.name.endswith(".csv"):
                 try:
-                    df = pd.read_csv(archivo, encoding="utf-8")
+                    df = pd.read_csv(archivo, encoding="utf-8", dtype=str)
                 except UnicodeDecodeError:
                     archivo.seek(0)
-                    df = pd.read_csv(archivo, encoding="latin-1")
+                    df = pd.read_csv(archivo, encoding="latin-1", dtype=str)
             else:
-                df = pd.read_excel(archivo)
+                df = pd.read_excel(archivo, dtype=str)
         except Exception as e:
             st.error(f"Error al leer el archivo: {e}")
             st.stop()
 
-        st.subheader("Vista previa de los datos")
+        # Limpiar nombres de columnas de espacios accidentales
+        df.columns = [str(c).strip() for c in df.columns]
+
+        st.subheader("Vista previa de los datos originales")
         st.dataframe(df.head(5), use_container_width=True)
 
         errores = []
         columnas_archivo = list(df.columns)
-        columnas_archivo_lower = [c.strip().lower() for c in columnas_archivo]
+        columnas_archivo_lower = [c.lower() for c in columnas_archivo]
 
+        # 1. Validar columnas requeridas
         columnas_faltantes = [
             col for col in datos_motor["columnas_requeridas"]
             if col.strip().lower() not in columnas_archivo_lower
@@ -79,13 +84,16 @@ if opcion == "Validar Layout de Archivo":
         if columnas_faltantes:
             errores.append(f"❌ **Faltan las siguientes columnas obligatorias:** `{', '.join(columnas_faltantes)}`")
 
+        # 2. Identificar columna de teléfono y columna de matrícula (si existe)
         col_tel_buscada = datos_motor.get("columna_telefono", "telefono").strip().lower()
-        col_telefono_real = next((col for col in columnas_archivo if col.strip().lower() == col_tel_buscada), None)
+        col_telefono_real = next((col for col in columnas_archivo if col.lower() == col_tel_buscada), None)
+        col_matricula_real = next((col for col in columnas_archivo if "matricula" in col.lower()), None)
 
         df_telefonos_invalidos = pd.DataFrame()
         if col_telefono_real:
             regex_tel = re.compile(datos_motor["regla_telefono"])
-            mask_invalidos = ~df[col_telefono_real].astype(str).str.strip().str.match(regex_tel, na=False)
+            serie_tel = df[col_telefono_real].fillna("").astype(str).str.strip()
+            mask_invalidos = ~serie_tel.str.match(regex_tel, na=False)
             df_telefonos_invalidos = df[mask_invalidos]
 
             if not df_telefonos_invalidos.empty:
@@ -96,20 +104,114 @@ if opcion == "Validar Layout de Archivo":
         else:
             errores.append(f"❌ **No se encontró la columna de teléfono esperada:** `{datos_motor.get('columna_telefono')}`")
 
+        # 3. Detectar duplicados
+        col_clave_dup = col_matricula_real if col_matricula_real else col_telefono_real
+        total_duplicados = 0
+        if col_clave_dup:
+            total_duplicados = int(df.duplicated(subset=[col_clave_dup]).sum())
+            if total_duplicados > 0:
+                errores.append(
+                    f"⚠️ **Se detectaron {total_duplicados} registros duplicados** tomando como referencia `{col_clave_dup}`."
+                )
+
+        # Despliegue de diagnósticos
         st.divider()
         if errores:
-            st.error("### El archivo contiene errores de validación:")
+            st.error("### El archivo contiene observaciones:")
             for err in errores:
                 st.markdown(err)
 
             if not df_telefonos_invalidos.empty and col_telefono_real:
-                with st.expander("🔍 Ver detalle de registros con teléfonos incorrectos", expanded=True):
+                with st.expander("🔍 Ver detalle de registros con teléfonos incorrectos", expanded=False):
                     st.dataframe(
                         df_telefonos_invalidos[[col_telefono_real] + [c for c in df.columns if c != col_telefono_real]],
                         use_container_width=True,
                     )
         else:
             st.success("✅ **¡El archivo cumple con el layout y las validaciones correctamente!**")
+
+        # ======================================================================
+        # HERRAMIENTAS DE LIMPIEZA Y DESCARGA DE BASE
+        # ======================================================================
+        st.divider()
+        st.subheader("🧹 Limpieza Automática y Descarga de Base")
+
+        col_chk1, col_chk2 = st.columns(2)
+        with col_chk1:
+            agregar_mas = st.checkbox(
+                "➕ Agregar signo '+' automáticamente a los teléfonos que no lo tengan",
+                value=True,
+            )
+        with col_chk2:
+            quitar_duplicados = st.checkbox(
+                f"🗑️ Eliminar registros duplicados ({total_duplicados} detectados)"
+                if col_clave_dup else "🗑️ Eliminar filas completamente duplicadas",
+                value=False,
+            )
+
+        df_procesado = df.copy()
+
+        # Aplicar corrección de '+' en teléfonos
+        if agregar_mas and col_telefono_real:
+            def normalizar_telefono(val):
+                if pd.isna(val):
+                    return val
+                texto = str(val).strip()
+                if texto == "" or texto.lower() == "nan":
+                    return ""
+                # Quitar espacios o guiones internos
+                texto_limpio = re.sub(r"[\s\-()]", "", texto)
+                if not texto_limpio.startswith("+") and texto_limpio.isdigit():
+                    return f"+{texto_limpio}"
+                return texto_limpio
+
+            df_procesado[col_telefono_real] = df_procesado[col_telefono_real].apply(normalizar_telefono)
+
+        # Aplicar eliminación de duplicados
+        if quitar_duplicados:
+            if col_clave_dup:
+                df_procesado = df_procesado.drop_duplicates(subset=[col_clave_dup], keep="first")
+            else:
+                df_procesado = df_procesado.drop_duplicates(keep="first")
+
+        # Métricas resumen de la base lista para descargar
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Registros Originales", f"{len(df):,}")
+        m2.metric("Registros Finales Listos", f"{len(df_procesado):,}")
+        m3.metric("Registros Eliminados", f"{len(df) - len(df_procesado):,}")
+
+        with st.expander("👀 Vista previa de la base procesada lista para descargar"):
+            st.dataframe(df_procesado.head(10), use_container_width=True)
+
+        # Preparar archivos para descarga
+        nombre_base = os.path.splitext(archivo.name)[0]
+        nombre_salida_xlsx = f"{nombre_base}_{motor_seleccionado}_LISTO.xlsx"
+        nombre_salida_csv = f"{nombre_base}_{motor_seleccionado}_LISTO.csv"
+
+        buffer_excel = io.BytesIO()
+        with pd.ExcelWriter(buffer_excel, engine="openpyxl") as writer:
+            df_procesado.to_excel(writer, index=False, sheet_name="Base_Limpia")
+        datos_excel = buffer_excel.getvalue()
+
+        datos_csv = df_procesado.to_csv(index=False).encode("utf-8-sig")
+
+        btn1, btn2 = st.columns(2)
+        with btn1:
+            st.download_button(
+                label="📥 Descargar Base Lista (.XLSX)",
+                data=datos_excel,
+                file_name=nombre_salida_xlsx,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+        with btn2:
+            st.download_button(
+                label="📥 Descargar Base Lista (.CSV)",
+                data=datos_csv,
+                file_name=nombre_salida_csv,
+                mime="text/csv",
+                use_container_width=True,
+            )
 
 # ==============================================================================
 # OPCIÓN 2: DASHBOARD Y GRÁFICAS DE CONTROL DE CARGAS
