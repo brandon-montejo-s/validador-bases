@@ -2,7 +2,6 @@
   {
     "motor": "riesgo-b1-b5",
     "formato_importacion": "UTELGESTION",
-    "columna_telefono": "Telefono",
     "columnas_requeridas": [
       "Matricula",
       "NombreApellido",
@@ -12,12 +11,26 @@
       "Programa",
       "Correoelectronico2"
     ],
-    "regla_telefono": "^\\+"
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
   },
   {
-    "motor": "Motor A",
+    "motor": "cobranza_voice_blaster_1-4",
+    "formato_importacion": "Blaster_LTM",
+    "columnas_requeridas": [
+      "MATRICULA",
+      "CAMPUS",
+      "NAME",
+      "EMAIL",
+      "CONTACTADRESS",
+      "ID"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "CONTACTADRESS"
+  },
+  {
+    "motor": "motor_A",
     "formato_importacion": "Cobranza_Mx",
-    "columna_telefono": "Telefono",
     "columnas_requeridas": [
       "NombreApellido",
       "Telefono",
@@ -27,12 +40,12 @@
       "Concatenado",
       "IdentificadorInterno"
     ],
-    "regla_telefono": "^\\+"
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
   },
   {
-    "motor": "Motor B",
+    "motor": "motor_B",
     "formato_importacion": "Cobranza_Mx",
-    "columna_telefono": "Telefono",
     "columnas_requeridas": [
       "NombreApellido",
       "Telefono",
@@ -42,12 +55,12 @@
       "Concatenado",
       "IdentificadorInterno"
     ],
-    "regla_telefono": "^\\+"
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
   },
   {
-    "motor": "Motor C",
+    "motor": "motor_C",
     "formato_importacion": "Cobranza_Mx",
-    "columna_telefono": "Telefono",
     "columnas_requeridas": [
       "NombreApellido",
       "Telefono",
@@ -57,12 +70,12 @@
       "Concatenado",
       "IdentificadorInterno"
     ],
-    "regla_telefono": "^\\+"
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
   },
   {
-    "motor": "Motor D",
+    "motor": "motor_D",
     "formato_importacion": "Cobranza_Mx",
-    "columna_telefono": "Telefono",
     "columnas_requeridas": [
       "NombreApellido",
       "Telefono",
@@ -72,210 +85,86 @@
       "Concatenado",
       "IdentificadorInterno"
     ],
-    "regla_telefono": "^\\+"
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
   },
   {
-    "motor": "PROCODESK",
-    "formato_importacion": "UTELGESTION",
-    "columna_telefono": "Telefono",
+    "motor": "motor_M1",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "name",
+      "ContactAddress",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestiondeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "ContactAddress"
+  },
+  {
+    "motor": "m2-m3",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "name",
+      "ContactAddress",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestiondeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "ContactAddress"
+  },
+  {
+    "motor": "m4-m7",
+    "formato_importacion": "Cobranza_Mx",
+    "columnas_requeridas": [
+      "name",
+      "ContactAddress",
+      "Email",
+      "Campus",
+      "Matricula",
+      "Adeudo",
+      "Tipodeadeudo",
+      "Etapa",
+      "Fechadecorte",
+      "Fechaultimopago",
+      "Domiciliacion",
+      "GestiondeMatricula",
+      "Ultimopago",
+      "IdentificadorInterno"
+    ],
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "ContactAddress"
+  },
+  {
+    "motor": "procodesk",
+    "formato_importacion": "COBMEX",
     "columnas_requeridas": [
       "Matricula",
-      "NombreApellido",
-      "Identificador",
-      "Correoelectronico",
+      "Nombre",
       "Telefono",
-      "Programa",
-      "Correoelectronico2"
-    ],
-    "regla_telefono": "^\\+"
-  },
-  {
-    "motor": "M1",
-    "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "ContactAddress",
-    "columnas_requeridas": [
-      "name",
-      "ContactAddress",
       "Email",
-      "Campus",
-      "Matricula",
-      "Adeudo",
-      "Tipodeadeudo",
-      "Etapa",
-      "Fechadecorte",
-      "Fechaultimopago",
-      "Domiciliacion",
-      "GestionDeMatricula",
-      "Ultimopago",
       "IdentificadorInterno"
     ],
-    "regla_telefono": "^\\+"
-  },
-  {
-    "motor": "M2",
-    "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "ContactAddress",
-    "columnas_requeridas": [
-      "name",
-      "ContactAddress",
-      "Email",
-      "Campus",
-      "Matricula",
-      "Adeudo",
-      "Tipodeadeudo",
-      "Etapa",
-      "Fechadecorte",
-      "Fechaultimopago",
-      "Domiciliacion",
-      "GestionDeMatricula",
-      "Ultimopago",
-      "IdentificadorInterno"
-    ],
-    "regla_telefono": "^\\+"
-  },
-  {
-    "motor": "M3",
-    "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "ContactAddress",
-    "columnas_requeridas": [
-      "name",
-      "ContactAddress",
-      "Email",
-      "Campus",
-      "Matricula",
-      "Adeudo",
-      "Tipodeadeudo",
-      "Etapa",
-      "Fechadecorte",
-      "Fechaultimopago",
-      "Domiciliacion",
-      "GestionDeMatricula",
-      "Ultimopago",
-      "IdentificadorInterno"
-    ],
-    "regla_telefono": "^\\+"
-  },
-  {
-    "motor": "M4",
-    "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "ContactAddress",
-    "columnas_requeridas": [
-      "name",
-      "ContactAddress",
-      "Email",
-      "Campus",
-      "Matricula",
-      "Adeudo",
-      "Tipodeadeudo",
-      "Etapa",
-      "Fechadecorte",
-      "Fechaultimopago",
-      "Domiciliacion",
-      "GestionDeMatricula",
-      "Ultimopago",
-      "IdentificadorInterno"
-    ],
-    "regla_telefono": "^\\+"
-  },
-  {
-    "motor": "M5",
-    "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "ContactAddress",
-    "columnas_requeridas": [
-      "name",
-      "ContactAddress",
-      "Email",
-      "Campus",
-      "Matricula",
-      "Adeudo",
-      "Tipodeadeudo",
-      "Etapa",
-      "Fechadecorte",
-      "Fechaultimopago",
-      "Domiciliacion",
-      "GestionDeMatricula",
-      "Ultimopago",
-      "IdentificadorInterno"
-    ],
-    "regla_telefono": "^\\+"
-  },
-  {
-    "motor": "M6",
-    "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "ContactAddress",
-    "columnas_requeridas": [
-      "name",
-      "ContactAddress",
-      "Email",
-      "Campus",
-      "Matricula",
-      "Adeudo",
-      "Tipodeadeudo",
-      "Etapa",
-      "Fechadecorte",
-      "Fechaultimopago",
-      "Domiciliacion",
-      "GestionDeMatricula",
-      "Ultimopago",
-      "IdentificadorInterno"
-    ],
-    "regla_telefono": "^\\+"
-  },
-  {
-    "motor": "M7",
-    "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "ContactAddress",
-    "columnas_requeridas": [
-      "name",
-      "ContactAddress",
-      "Email",
-      "Campus",
-      "Matricula",
-      "Adeudo",
-      "Tipodeadeudo",
-      "Etapa",
-      "Fechadecorte",
-      "Fechaultimopago",
-      "Domiciliacion",
-      "GestionDeMatricula",
-      "Ultimopago",
-      "IdentificadorInterno"
-    ],
-    "regla_telefono": "^\\+"
-  },
-  {
-    "motor": "M1_M6",
-    "formato_importacion": "Cobranza_LTM",
-    "columna_telefono": "ContactAddress",
-    "columnas_requeridas": [
-      "name",
-      "ContactAddress",
-      "Email",
-      "Campus",
-      "Matricula",
-      "Adeudo",
-      "Tipodeadeudo",
-      "Etapa",
-      "Fechadecorte",
-      "Fechaultimopago",
-      "Domiciliacion",
-      "GestionDeMatricula",
-      "Ultimopago",
-      "IdentificadorInterno"
-    ],
-    "regla_telefono": "^\\+"
-  },
-  {
-    "motor": "VoiceBlaster",
-    "formato_importacion": "Blaster_LATM",
-    "columna_telefono": "telefono",
-    "columnas_requeridas": [
-      "NombreApellido",
-      "Identificador",
-      "Correoelectronico",
-      "telefono",
-      "programa"
-    ],
-    "regla_telefono": "^\\+"
+    "regla_telefono": "^\\+\\d+$",
+    "columna_telefono": "Telefono"
   }
 ]
