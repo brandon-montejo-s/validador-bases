@@ -6,7 +6,27 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-st.set_page_config(page_title="Validador y Dashboard de Motores", layout="wide")
+st.set_page_config(page_title="Validador y Dashboard de Operaciones", layout="wide")
+
+# ==============================================================================
+# CONFIGURACIÓN DE ENLACES EN LÍNEA (PEGA AQUÍ TUS LINKS DE GOOGLE SHEETS)
+# ==============================================================================
+URL_CONTROL_CARGAS = ""  # Ej: "https://docs.google.com/spreadsheets/d/1aTGNResGD8S9PIyIw3J9-PXj1zPOnLiT/edit?usp=sharing&ouid=109570566825591874970&rtpof=true&sd=true"
+URL_CONTROL_JIRAS = ""   # Ej: "https://docs.google.com/spreadsheets/d/12eRy0PgOsYEbJayhHDNbytORBTrizmpVODvO-PKRyPM/edit?usp=sharing"
+
+def convertir_link_gsheets(url):
+    """Convierte un enlace normal de Google Sheets en URL de descarga directa .xlsx"""
+    if not url:
+        return None
+    match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", url)
+    if match:
+        file_id = match.group(1)
+        return f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=xlsx"
+    return url
+
+@st.cache_data(ttl=300)  # Se actualiza automáticamente cada 5 minutos
+def cargar_excel_desde_url(url_export):
+    return pd.ExcelFile(url_export)
 
 @st.cache_data
 def cargar_configuracion():
@@ -25,6 +45,7 @@ opcion = st.sidebar.selectbox(
     [
         "Validar Layout de Archivo",
         "📊 Dashboard de Control de Cargas",
+        "🎫 Dashboard de Control de JIRAS",
         "Consultar Manual de Procesos",
     ],
 )
@@ -74,7 +95,6 @@ if opcion == "Validar Layout de Archivo":
         columnas_archivo = list(df.columns)
         columnas_archivo_lower = [c.lower() for c in columnas_archivo]
 
-        # 1. Validar columnas requeridas
         columnas_faltantes = [
             col for col in datos_motor["columnas_requeridas"]
             if col.strip().lower() not in columnas_archivo_lower
@@ -83,7 +103,6 @@ if opcion == "Validar Layout de Archivo":
         if columnas_faltantes:
             errores.append(f"❌ **Faltan las siguientes columnas obligatorias:** `{', '.join(columnas_faltantes)}`")
 
-        # Identificar columnas clave dinámicamente
         col_tel_buscada = datos_motor.get("columna_telefono", "telefono").strip().lower()
         col_telefono_real = next((col for col in columnas_archivo if col.lower() == col_tel_buscada), None)
         col_matricula_real = next((col for col in columnas_archivo if "matricula" in col.lower()), None)
@@ -92,7 +111,6 @@ if opcion == "Validar Layout de Archivo":
             None,
         )
 
-        # 2. Detectar teléfonos sin '+' o inválidos
         mask_tel_invalido = pd.Series(False, index=df.index)
         if col_telefono_real:
             regex_tel = re.compile(datos_motor["regla_telefono"])
@@ -108,7 +126,6 @@ if opcion == "Validar Layout de Archivo":
         else:
             errores.append(f"❌ **No se encontró la columna de teléfono esperada:** `{datos_motor.get('columna_telefono')}`")
 
-        # 3. Detectar matrícula duplicada pegada en NombreApellido
         mask_mat_en_nombre = pd.Series(False, index=df.index)
         if col_matricula_real and col_nombre_real:
             def tiene_matricula_pegada(row):
@@ -127,9 +144,6 @@ if opcion == "Validar Layout de Archivo":
                     f"(ej. `{df.loc[mask_mat_en_nombre, col_nombre_real].iloc[0]}`)."
                 )
 
-        # ======================================================================
-        # TABLA DE VISTA PREVIA DE REGISTROS CON ERRORES
-        # ======================================================================
         st.divider()
         mask_cualquier_error = mask_tel_invalido | mask_mat_en_nombre
 
@@ -159,9 +173,6 @@ if opcion == "Validar Layout de Archivo":
         else:
             st.success("✅ **¡El archivo cumple con el layout y no tiene errores en nombres ni teléfonos!**")
 
-        # ======================================================================
-        # HERRAMIENTAS DE LIMPIEZA CONDICIONAL Y DESCARGA
-        # ======================================================================
         st.divider()
         st.subheader("🧹 Limpieza Automática y Descarga de Base")
 
@@ -185,7 +196,6 @@ if opcion == "Validar Layout de Archivo":
 
         df_procesado = df.copy()
 
-        # Aplicar corrección de '+' si está activo
         if agregar_mas and hay_error_tel and col_telefono_real:
             def normalizar_telefono(val):
                 if pd.isna(val):
@@ -200,7 +210,6 @@ if opcion == "Validar Layout de Archivo":
 
             df_procesado[col_telefono_real] = df_procesado[col_telefono_real].apply(normalizar_telefono)
 
-        # Aplicar limpieza de matrícula en nombre si está activo
         if limpiar_matricula_nombre and hay_error_mat_nombre and col_matricula_real and col_nombre_real:
             def remover_prefijo_matricula(row):
                 mat = str(row[col_matricula_real]).strip() if pd.notna(row[col_matricula_real]) else ""
@@ -211,7 +220,6 @@ if opcion == "Validar Layout de Archivo":
 
             df_procesado[col_nombre_real] = df_procesado.apply(remover_prefijo_matricula, axis=1)
 
-        # Métricas resumen
         corregidos_tel = int(mask_tel_invalido.sum()) if (agregar_mas and hay_error_tel) else 0
         corregidos_nom = int(mask_mat_en_nombre.sum()) if (limpiar_matricula_nombre and hay_error_mat_nombre) else 0
 
@@ -223,7 +231,6 @@ if opcion == "Validar Layout de Archivo":
         with st.expander("👀 Vista previa de la base procesada lista para descargar", expanded=True):
             st.dataframe(df_procesado.head(10), use_container_width=True)
 
-        # Preparar archivos para descarga
         nombre_base = os.path.splitext(archivo.name)[0]
         nombre_salida_xlsx = f"{nombre_base}_{motor_seleccionado}_LISTO.xlsx"
         nombre_salida_csv = f"{nombre_base}_{motor_seleccionado}_LISTO.csv"
@@ -257,16 +264,42 @@ if opcion == "Validar Layout de Archivo":
 # OPCIÓN 2: DASHBOARD Y GRÁFICAS DE CONTROL DE CARGAS
 # ==============================================================================
 elif opcion == "📊 Dashboard de Control de Cargas":
-    st.header("📊 Análisis Operativo de Lotes y Contactos")
-    st.markdown("Sube tu archivo **`Control_Integrado_Lotes_Contactos.xlsx`** para generar el análisis automático.")
+    col_t1, col_t2 = st.columns([4, 1])
+    with col_t1:
+        st.header("📊 Análisis Operativo de Lotes y Contactos")
+    with col_t2:
+        if st.button("🔄 Actualizar datos", key="btn_ref_cargas", use_container_width=True):
+            cargar_excel_desde_url.clear()
+            st.rerun()
 
-    archivo_control = st.file_uploader("Sube el archivo de Control de Lotes (.xlsx)", type=["xlsx"])
+    with st.expander("🔗 Configurar enlace en línea o subir archivo manual (.xlsx)", expanded=not bool(URL_CONTROL_CARGAS)):
+        link_cargas_input = st.text_input(
+            "Enlace de Google Sheets (Control de Cargas):",
+            value=URL_CONTROL_CARGAS,
+            placeholder="Pega aquí el enlace compartido de Google Sheets...",
+        )
+        archivo_control = st.file_uploader(
+            "O sube un archivo Excel local (.xlsx) si deseas analizar una copia manual:",
+            type=["xlsx"],
+            key="ctrl_cargas",
+        )
 
-    if archivo_control is not None:
-        try:
+    excel_file = None
+    try:
+        if archivo_control is not None:
             excel_file = pd.ExcelFile(archivo_control)
+            st.caption("📂 Fuente activa: **Archivo local cargado manualmente**")
+        elif link_cargas_input.strip():
+            url_export = convertir_link_gsheets(link_cargas_input.strip())
+            excel_file = cargar_excel_desde_url(url_export)
+            st.caption("🌐 Fuente activa: **Google Sheets conectado en línea**")
+    except Exception as e:
+        st.error(f"No se pudo conectar con el enlace de Google Sheets. Verifica que el archivo esté compartido como 'Cualquier persona con el enlace'. Detalle: {e}")
+
+    if excel_file is not None:
+        try:
             hoja = "BD_Cargas" if "BD_Cargas" in excel_file.sheet_names else excel_file.sheet_names[0]
-            df_ctrl = pd.read_excel(archivo_control, sheet_name=hoja)
+            df_ctrl = pd.read_excel(excel_file, sheet_name=hoja)
 
             cols = list(df_ctrl.columns)
             if len(cols) >= 3:
@@ -292,7 +325,6 @@ elif opcion == "📊 Dashboard de Control de Cargas":
             if "Fecha de Activacion" in df_ctrl.columns:
                 df_ctrl["Fecha_Dt"] = pd.to_datetime(df_ctrl["Fecha de Activacion"], dayfirst=True, errors="coerce")
 
-            # --- BARRA DE FILTROS ---
             st.subheader("Filtros de Análisis")
             f1, f2, f3, f4 = st.columns(4)
 
@@ -326,7 +358,6 @@ elif opcion == "📊 Dashboard de Control de Cargas":
 
             st.divider()
 
-            # --- TARJETAS DE KPIs ---
             tot_a_cargar = int(df_ctrl["# registros a cargar"].sum()) if "# registros a cargar" in df_ctrl.columns else 0
             tot_cargados = int(df_ctrl["# registros cargados"].sum()) if "# registros cargados" in df_ctrl.columns else 0
             tot_cancelados = int(df_ctrl["# registros cancelados"].sum()) if "# registros cancelados" in df_ctrl.columns else 0
@@ -342,7 +373,6 @@ elif opcion == "📊 Dashboard de Control de Cargas":
 
             st.divider()
 
-            # --- FILA 1 DE GRÁFICAS: EVOLUCIÓN DIARIA ---
             if "Fecha_Dt" in df_ctrl.columns and not df_ctrl["Fecha_Dt"].dropna().empty:
                 st.subheader("📅 Evolución Diaria de Registros Cargados vs. Cancelados")
                 df_diario = (
@@ -361,7 +391,6 @@ elif opcion == "📊 Dashboard de Control de Cargas":
                 )
                 st.plotly_chart(fig_diario, use_container_width=True)
 
-            # --- FILA 2 DE GRÁFICAS: ANALISTA Y CAMPAÑA ---
             g1, g2 = st.columns(2)
 
             with g1:
@@ -399,7 +428,6 @@ elif opcion == "📊 Dashboard de Control de Cargas":
                     )
                     st.plotly_chart(fig_campana, use_container_width=True)
 
-            # --- FILA 3 DE GRÁFICAS: TURNO Y DÍA DE LA SEMANA ---
             g3, g4 = st.columns(2)
 
             with g3:
@@ -432,7 +460,6 @@ elif opcion == "📊 Dashboard de Control de Cargas":
                     )
                     st.plotly_chart(fig_dias, use_container_width=True)
 
-            # Tabla resumen inferior
             with st.expander("📋 Ver detalle de lotes filtrados"):
                 st.dataframe(df_ctrl.drop(columns=["Fecha_Dt"], errors="ignore"), use_container_width=True)
 
@@ -440,7 +467,204 @@ elif opcion == "📊 Dashboard de Control de Cargas":
             st.error(f"Ocurrió un error al procesar el archivo de control: {e}")
 
 # ==============================================================================
-# OPCIÓN 3: MANUAL DE PROCESOS
+# OPCIÓN 3: DASHBOARD Y GRÁFICAS DE CONTROL DE JIRAS
+# ==============================================================================
+elif opcion == "🎫 Dashboard de Control de JIRAS":
+    col_j1, col_j2 = st.columns([4, 1])
+    with col_j1:
+        st.header("🎫 Análisis Operativo de Tickets e Incidencias (JIRA)")
+    with col_j2:
+        if st.button("🔄 Actualizar datos", key="btn_ref_jiras", use_container_width=True):
+            cargar_excel_desde_url.clear()
+            st.rerun()
+
+    with st.expander("🔗 Configurar enlace en línea o subir archivo manual (.xlsx)", expanded=not bool(URL_CONTROL_JIRAS)):
+        link_jiras_input = st.text_input(
+            "Enlace de Google Sheets (Control de JIRAS):",
+            value=URL_CONTROL_JIRAS,
+            placeholder="Pega aquí el enlace compartido de Google Sheets...",
+        )
+        archivo_jiras = st.file_uploader(
+            "O sube un archivo Excel local (.xlsx) si deseas analizar una copia manual:",
+            type=["xlsx"],
+            key="ctrl_jiras",
+        )
+
+    excel_jiras = None
+    try:
+        if archivo_jiras is not None:
+            excel_jiras = pd.ExcelFile(archivo_jiras)
+            st.caption("📂 Fuente activa: **Archivo local cargado manualmente**")
+        elif link_jiras_input.strip():
+            url_export_j = convertir_link_gsheets(link_jiras_input.strip())
+            excel_jiras = cargar_excel_desde_url(url_export_j)
+            st.caption("🌐 Fuente activa: **Google Sheets conectado en línea**")
+    except Exception as e:
+        st.error(f"No se pudo conectar con el enlace de Google Sheets. Verifica que el archivo esté compartido como 'Cualquier persona con el enlace'. Detalle: {e}")
+
+    if excel_jiras is not None:
+        try:
+            hoja_j = "Jiras" if "Jiras" in excel_jiras.sheet_names else excel_jiras.sheet_names[0]
+            df_jiras = pd.read_excel(excel_jiras, sheet_name=hoja_j)
+
+            df_jiras.columns = [str(c).strip() for c in df_jiras.columns]
+            col_incidencia = next((c for c in df_jiras.columns if c.lower() == "incidencia"), "Incidencia")
+
+            if "JIRA" in df_jiras.columns:
+                df_jiras = df_jiras[df_jiras["JIRA"].notna() & (df_jiras["JIRA"].astype(str).str.strip() != "")]
+
+            cols_texto = ["Mes", "Area", "Estatus en Jira", "Prioridad", col_incidencia, "Quien reporta"]
+            for c in cols_texto:
+                if c in df_jiras.columns:
+                    df_jiras[c] = df_jiras[c].fillna("Sin especificar").astype(str).str.strip()
+
+            if "Fecha Inicio" in df_jiras.columns:
+                df_jiras["Fecha_Inicio_Dt"] = pd.to_datetime(df_jiras["Fecha Inicio"], dayfirst=True, errors="coerce")
+
+            st.subheader("Filtros de Análisis")
+            jf1, jf2, jf3, jf4 = st.columns(4)
+
+            with jf1:
+                if "Mes" in df_jiras.columns:
+                    meses_j = ["Todos"] + sorted(df_jiras["Mes"].unique().tolist())
+                    mes_j_sel = st.selectbox("Mes", meses_j, key="j_mes")
+                    if mes_j_sel != "Todos":
+                        df_jiras = df_jiras[df_jiras["Mes"] == mes_j_sel]
+
+            with jf2:
+                if "Area" in df_jiras.columns:
+                    areas_j = ["Todas"] + sorted(df_jiras["Area"].unique().tolist())
+                    area_j_sel = st.selectbox("Área", areas_j, key="j_area")
+                    if area_j_sel != "Todas":
+                        df_jiras = df_jiras[df_jiras["Area"] == area_j_sel]
+
+            with jf3:
+                if "Prioridad" in df_jiras.columns:
+                    prios_j = ["Todas"] + sorted(df_jiras["Prioridad"].unique().tolist())
+                    prio_j_sel = st.selectbox("Prioridad", prios_j, key="j_prio")
+                    if prio_j_sel != "Todas":
+                        df_jiras = df_jiras[df_jiras["Prioridad"] == prio_j_sel]
+
+            with jf4:
+                if "Quien reporta" in df_jiras.columns:
+                    rep_j = ["Todos"] + sorted(df_jiras["Quien reporta"].unique().tolist())
+                    rep_j_sel = st.selectbox("Quien reporta", rep_j, key="j_rep")
+                    if rep_j_sel != "Todos":
+                        df_jiras = df_jiras[df_jiras["Quien reporta"] == rep_j_sel]
+
+            st.divider()
+
+            total_tickets = len(df_jiras)
+            resueltos = int((df_jiras["Estatus en Jira"].str.lower() == "resuelto").sum()) if "Estatus en Jira" in df_jiras.columns else 0
+            pendientes = total_tickets - resueltos
+            alta_prio = int((df_jiras["Prioridad"].str.lower() == "alta").sum()) if "Prioridad" in df_jiras.columns else 0
+            tasa_resolucion = (resueltos / total_tickets * 100) if total_tickets > 0 else 0
+
+            jk1, jk2, jk3, jk4, jk5 = st.columns(5)
+            jk1.metric("🎫 Total JIRAS", f"{total_tickets:,}")
+            jk2.metric("✅ Resueltos", f"{resueltos:,}")
+            jk3.metric("⏳ Abiertos / Otros", f"{pendientes:,}")
+            jk4.metric("🔥 Prioridad Alta", f"{alta_prio:,}")
+            jk5.metric("📈 Tasa Resolución", f"{tasa_resolucion:.1f}%")
+
+            st.divider()
+
+            jg1, jg2 = st.columns([2, 1])
+
+            with jg1:
+                if col_incidencia in df_jiras.columns:
+                    st.subheader("🚨 Top Tipos de Incidencia")
+                    df_inc = df_jiras[col_incidencia].value_counts().reset_index()
+                    df_inc.columns = ["Incidencia", "Cantidad"]
+                    df_inc = df_inc.sort_values("Cantidad", ascending=True)
+
+                    fig_inc = px.bar(
+                        df_inc,
+                        x="Cantidad",
+                        y="Incidencia",
+                        orientation="h",
+                        color_discrete_sequence=["#EF4444"],
+                    )
+                    st.plotly_chart(fig_inc, use_container_width=True)
+
+            with jg2:
+                if "Prioridad" in df_jiras.columns:
+                    st.subheader("⚡ Tickets por Prioridad")
+                    df_prio = df_jiras["Prioridad"].value_counts().reset_index()
+                    df_prio.columns = ["Prioridad", "Cantidad"]
+
+                    fig_prio = px.pie(
+                        df_prio,
+                        names="Prioridad",
+                        values="Cantidad",
+                        hole=0.45,
+                        color="Prioridad",
+                        color_discrete_map={
+                            "Alta": "#DC2626",
+                            "Media": "#D97706",
+                            "Normal": "#2563EB",
+                            "Baja": "#64748B",
+                        },
+                    )
+                    st.plotly_chart(fig_prio, use_container_width=True)
+
+            jg3, jg4 = st.columns(2)
+
+            with jg3:
+                if "Area" in df_jiras.columns:
+                    st.subheader("🏢 Tickets por Área")
+                    df_area = df_jiras["Area"].value_counts().reset_index()
+                    df_area.columns = ["Area", "Cantidad"]
+
+                    fig_area = px.bar(
+                        df_area,
+                        x="Area",
+                        y="Cantidad",
+                        color_discrete_sequence=["#6366F1"],
+                    )
+                    st.plotly_chart(fig_area, use_container_width=True)
+
+            with jg4:
+                if "Quien reporta" in df_jiras.columns:
+                    st.subheader("👤 Tickets Reportados por Analista")
+                    df_rep = df_jiras["Quien reporta"].value_counts().reset_index()
+                    df_rep.columns = ["Analista", "Cantidad"]
+
+                    fig_rep = px.bar(
+                        df_rep,
+                        x="Analista",
+                        y="Cantidad",
+                        color_discrete_sequence=["#10B981"],
+                    )
+                    st.plotly_chart(fig_rep, use_container_width=True)
+
+            if "Fecha_Inicio_Dt" in df_jiras.columns and not df_jiras["Fecha_Inicio_Dt"].dropna().empty:
+                st.subheader("📅 Evolución Diaria de Tickets Levantados")
+                df_j_diario = (
+                    df_jiras.groupby("Fecha_Inicio_Dt")
+                    .size()
+                    .reset_index(name="Tickets")
+                    .sort_values("Fecha_Inicio_Dt")
+                )
+                fig_j_diario = px.line(
+                    df_j_diario,
+                    x="Fecha_Inicio_Dt",
+                    y="Tickets",
+                    markers=True,
+                    labels={"Fecha_Inicio_Dt": "Fecha de Inicio", "Tickets": "Cantidad de JIRAS"},
+                    color_discrete_sequence=["#3B82F6"],
+                )
+                st.plotly_chart(fig_j_diario, use_container_width=True)
+
+            with st.expander("📋 Ver detalle de tickets JIRAS filtrados", expanded=False):
+                cols_mostrar = [c for c in df_jiras.columns if c != "Fecha_Inicio_Dt"]
+                st.dataframe(df_jiras[cols_mostrar], use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Ocurrió un error al procesar el archivo de JIRAS: {e}")
+
+# ==============================================================================
+# OPCIÓN 4: MANUAL DE PROCESOS
 # ==============================================================================
 elif opcion == "Consultar Manual de Procesos":
     st.header("🤖 Consultar Manual de Usuario")
