@@ -11,8 +11,8 @@ st.set_page_config(page_title="Validador y Dashboard de Operaciones", layout="wi
 # ==============================================================================
 # CONFIGURACIÓN DE ENLACES EN LÍNEA (PEGA AQUÍ TUS LINKS DE GOOGLE SHEETS)
 # ==============================================================================
-URL_CONTROL_CARGAS = "https://docs.google.com/spreadsheets/d/1aTGNResGD8S9PIyIw3J9-PXj1zPOnLiT/edit?usp=sharing&ouid=109570566825591874970&rtpof=true&sd=true"  # Ej: "https://docs.google.com/spreadsheets/d/1aTGNResGD8S9PIyIw3J9-PXj1zPOnLiT/edit?usp=sharing&ouid=109570566825591874970&rtpof=true&sd=true"
-URL_CONTROL_JIRAS = "https://docs.google.com/spreadsheets/d/12eRy0PgOsYEbJayhHDNbytORBTrizmpVODvO-PKRyPM/edit?usp=sharing"   # Ej: "https://docs.google.com/spreadsheets/d/12eRy0PgOsYEbJayhHDNbytORBTrizmpVODvO-PKRyPM/edit?usp=sharing"
+URL_CONTROL_CARGAS = ""  # Ej: "https://docs.google.com/spreadsheets/d/1aTGNResGD8S9PIyIw3J9-PXj1zPOnLiT/edit?usp=sharing&ouid=109570566825591874970&rtpof=true&sd=true"
+URL_CONTROL_JIRAS = ""   # Ej: "https://docs.google.com/spreadsheets/d/12eRy0PgOsYEbJayhHDNbytORBTrizmpVODvO-PKRyPM/edit?usp=sharing"
 
 def convertir_link_gsheets(url):
     """Convierte un enlace normal de Google Sheets en URL de descarga directa .xlsx"""
