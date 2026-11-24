@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import pandas as pd
 import plotly.express as px
@@ -8,7 +9,9 @@ st.set_page_config(page_title="Validador y Dashboard de Motores", layout="wide")
 
 @st.cache_data
 def cargar_configuracion():
-    with open("motores_config.json", "r", encoding="utf-8") as f:
+    ruta_actual = os.path.dirname(os.path.abspath(__file__))
+    ruta_json = os.path.join(ruta_actual, "motores_config.json")
+    with open(ruta_json, "r", encoding="utf-8") as f:
         return json.load(f)
 
 config_motores = cargar_configuracion()
